@@ -477,11 +477,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           var start1 = starting_position;
           var length1 = current_pointer_min_position - start1;
           if (length1 < 0) throw "length1 = " + length1 + " < 0";
-          var pointer1 = get_pointer(start1, length1);
           var start2 = current_pointer_max_position;
           var length2 = target_position - start2;
           if (length2 < 0) throw "length2 = " + length2 + " < 0";
-          var pointer2 = get_pointer(start2, length2);
 
           pointers.splice(pointer_index, 1);
           if (pointers.length === 0) {
@@ -489,10 +487,14 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             pointer_index = getRandomInt(pointers.length);
           } else {
             pointer_index = getRandomInt(pointers.length);
-            if (length1 >= time_remap_pointer_seconds_min) pointers.push(pointer1);
-            else total_seconds_skipped += length1;
-            if (length2 >= time_remap_pointer_seconds_min) pointers.push(pointer2);
-            else total_seconds_skipped += length2;
+            if (length1 >= time_remap_pointer_seconds_min) {
+              var pointer1 = get_pointer(start1, length1);
+              pointers.push(pointer1);
+            } else total_seconds_skipped += length1;
+            if (length2 >= time_remap_pointer_seconds_min) {
+              var pointer2 = get_pointer(start2, length2);
+              pointers.push(pointer2);
+            } else total_seconds_skipped += length2;
           }
 
           pointers[pointer_index].hits_total++;
