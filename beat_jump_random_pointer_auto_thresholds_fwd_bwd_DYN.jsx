@@ -380,13 +380,14 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time = work_start + frame * frameDur;
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
+      if (window_stats.max === window_stats.min) windows_stats_max_equal_min++;
       // windows_stats_values.push(window_stats);
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
 
       var input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
       var input_C_activation_value = lerp(window_stats.avg, window_stats.max, activation_deactivation_spread);
       if (input_C_deactivation_value === input_C_activation_value) {
-        input_C_deactivation_value_equal_activation_value++; // skip activation if so
+        input_C_deactivation_value_equal_activation_value++; // skip if so
       } else {
         if (input_C_value >= input_C_activation_value) time_for_speed_max_end = time + 0.1;
       }
@@ -426,10 +427,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
       var FX_triggered = false;
 
-      if (is_FX_active && (input_C_value < input_C_deactivation_value)) {
+      if (is_FX_active && (input_C_value <= input_C_deactivation_value)) {
         is_FX_active = false;
       }
-      if ((!is_FX_active) && (input_C_value > input_C_activation_value)) {
+      if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
         if (input_C_deactivation_value === input_C_activation_value) {
           // skip activation if so
         } else {
