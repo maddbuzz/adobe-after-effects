@@ -274,7 +274,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const input_C_control = beat_layer.effect("BCC Beat Reactor")("Output Value C"); // в выражении для Amount эффекта S_WarpFishEye: -thisComp.layer("beat").effect("BCC Beat Reactor")("Output Value C") * 0.25
   // const input_A_control = beat_layer.effect("BCC Beat Reactor")("Output Value A");
 
+  var get_pointer_called = 0;
   function get_pointer(starting_position, length) {
+    get_pointer_called++;
     const target_position = starting_position + length;
     const direction = Math.random() < 0.5 ? -1 : +1;
     const current_position = direction > 0 ? starting_position : target_position;
@@ -597,9 +599,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "hue_drift = " + hue_drift + "\n" +
     "auto_correction_window = " + auto_correction_window + "\n" +
+    "GET_NEW_POINTERS_CALLED = " + get_new_pointers_called + "\n" +
+    "get_pointer_called = " + get_pointer_called + "\n" +
     "pointers_number_before = " + pointers_number_before + "\n" +
     "pointers_number_after = " + pointers_number_after + "\n" +
-    "GET_NEW_POINTERS_CALLED = " + get_new_pointers_called + "\n" +
     "max_pointers_at_once = " + max_pointers_at_once + "\n" +
     "min_pointers_at_once = " + min_pointers_at_once + "\n" +
     "pointer_hits_total_max = " + pointer_hits_total_max + "\n" +
