@@ -126,26 +126,6 @@ function compute_forward_window_stats_step(state, control_property, frame_index)
   };
 }
 
-function reflect_ping_pong(
-  raw_position,
-  left_boundary,
-  right_boundary
-) {
-  const boundary_range = right_boundary - left_boundary;
-  const double_range = boundary_range * 2;
-
-  // нормализуем в диапазон 0..double_range
-  var normalized = (raw_position - left_boundary) % double_range;
-  if (normalized < 0) normalized += double_range;
-
-  // прямой или обратный проход
-  if (normalized <= boundary_range) {
-    return left_boundary + normalized;
-  } else {
-    return right_boundary - (normalized - boundary_range);
-  }
-}
-
 function get_ADSR_amplitude(time, activation_time, deactivation_time, is_active, attack, delay, sustain_level, release) {
   if (activation_time === null) return 0;
   if (time - activation_time < attack) return lerp(0, 1, (time - activation_time) / attack);
@@ -225,7 +205,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   const videoComp = getCompByName("composition_video");
   const video_clips_times = get_video_clips_start_end_times_in_composition(beatComp, "composition_video");
-  // alert(JSON.stringify(video_clips_times));
 
   const video_start = 0;
   const video_end = videoComp.duration;
@@ -237,7 +216,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "frames_batch_size", "Slider", 5000);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
-  create_new_or_return_existing_control(beat_layer, "activation_deactivation_spread", "Slider", 0.9); // [0, 1] (0 -> input_C_activation_value === input_C_deactivation_value === avg)
+  create_new_or_return_existing_control(beat_layer, "activation_deactivation_spread", "Slider", 0.5); // [0, 1] (0 -> input_C_activation_value === input_C_deactivation_value === avg)
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -246,12 +225,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
-  create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
+  create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.005); // 0.0005);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_delay", "Slider", 0); // seconds
   create_new_or_return_existing_control(beat_layer, "time_remap_pointers_total", "Slider", 1); // if (time_remap_use_clips_for_pointers === false) then best set to 3+
-  create_new_or_return_existing_control(beat_layer, "time_remap_pointer_seconds_min", "Slider", 60);
+  create_new_or_return_existing_control(beat_layer, "time_remap_pointer_seconds_min", "Slider", 16);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then time_remap_pointers_total sets total pointers for ONE clip
-  create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
 
@@ -273,7 +251,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const time_remap_pointers_total = beat_layer.effect("time_remap_pointers_total")("Slider").value;
   const time_remap_pointer_seconds_min = beat_layer.effect("time_remap_pointer_seconds_min")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
-  const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
 
@@ -300,7 +277,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   function get_pointer(starting_position, length) {
     const target_position = starting_position + length;
     const direction = Math.random() < 0.5 ? -1 : +1;
-    //const current_position = getRandomInRange(starting_position, target_position);
     const current_position = direction > 0 ? starting_position : target_position;
     return {
       starting_position: starting_position,
@@ -618,7 +594,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "time_remap_pointers_total = " + time_remap_pointers_total + "\n" +
     "time_remap_pointer_seconds_min = " + time_remap_pointer_seconds_min + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
-    "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
     "hue_drift = " + hue_drift + "\n" +
     "auto_correction_window = " + auto_correction_window + "\n" +
     "pointers_number_before = " + pointers_number_before + "\n" +
@@ -650,6 +625,5 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "times_pointers_reversed = " + times_pointers_reversed + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n"
-    // "pointers_counters = " + JSON.stringify(pointers_counters) + "\n"
   );
 })();
