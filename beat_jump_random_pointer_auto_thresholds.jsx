@@ -217,13 +217,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "frames_batch_size", "Slider", 5000);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
-  create_new_or_return_existing_control(beat_layer, "activation_deactivation_spread", "Slider", 0.9); // [0, 1] (0 -> input_C_activation_value === input_C_deactivation_value === avg)
+  create_new_or_return_existing_control(beat_layer, "activation_deactivation_spread", "Slider", 0.5); // [0, 1] (0 -> input_C_activation_value === input_C_deactivation_value === avg)
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // seconds
-  create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 10.0); // 1 + (7 / 1.25) * 2 === 12.2
-  create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
+  create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 16.0); // 1 + (7 / 1.25) * 2 === 12.2
+  create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
@@ -311,11 +311,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     else return get_even_pointers(video_start, video_end, time_remap_pointers_total, 0);
   }
 
-  var pointer_index = 0;
   var pointers = get_pointers();
+  var pointer_index = getRandomInt(pointers.length);
   const pointers_number_before = pointers.length;
-  const pointers_counters = [];
-  for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
+  const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
 
   var accumulated_time = 0;
   var then_accumulated_reach_video_duration = null;
@@ -326,7 +325,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const effect_triggered_values = [];
   const windows_stats_values = [];
 
-  var effect_index = 2; // getRandomInt(3); // [0, 2];
+  var effect_index = getRandomInt(3); // [0, 2];
   var FX_triggered_total = 0;
   var is_FX_active = false;
   var scale_ADSR_activation_time = null;

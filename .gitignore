@@ -10,3 +10,6 @@
 /**/*.aep
 /**/*.lnk
 /**/*.zip
+tweak_shader_ae_plugin/bz_bass.glsl
+tweak_shader_ae_plugin/grayscale.glsl
+tweak_shader_ae_plugin/Image Input Example.glsl
