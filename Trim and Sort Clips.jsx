@@ -57,13 +57,15 @@
     return effect.property(type);
   }
 
+  create_control_if_not_exists(control_layer, "just_order_dont_trim", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_name", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_order", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "just_sort_dont_trim", "Checkbox", true);
   create_control_if_not_exists(control_layer, "trim_start", "Slider", 1);
   create_control_if_not_exists(control_layer, "trim_end", "Slider", 4);
 
   var reverse_order = get_control(control_layer, "reverse_order", "Checkbox").value;
-  var just_sort_dont_trim = get_control(control_layer, "just_sort_dont_trim", "Checkbox").value;
+  var just_order_dont_trim = get_control(control_layer, "just_order_dont_trim", "Checkbox").value;
+  var sort_by_name = get_control(control_layer, "sort_by_name", "Checkbox").value;
   var trim_start = get_control(control_layer, "trim_start", "Slider").value;
   var trim_end = get_control(control_layer, "trim_end", "Slider").value;
 
@@ -85,7 +87,7 @@
     return;
   }
 
-  target_layers.sort(function (layer_a, layer_b) {
+  if (sort_by_name) target_layers.sort(function (layer_a, layer_b) {
     var name_a = layer_a.source.name.toLowerCase();
     var name_b = layer_b.source.name.toLowerCase();
     var result = 0;
@@ -112,8 +114,7 @@
       current_layer.property("Scale").setValue([uniform_scale, uniform_scale]);
     } catch (_) { }
 
-    if (!just_sort_dont_trim) {
-      // Обрезка
+    if (!just_order_dont_trim) {
       var source_duration = current_layer.source.duration;
       var source_in_time = trim_start;
       var source_out_time = source_duration - trim_end;
@@ -125,7 +126,7 @@
       current_layer.outPoint = current_time + trimmed_duration;
       current_time += trimmed_duration;
     } else {
-      // только сортировка — сохраняем текущую длину и локальный оффсет
+      // только упорядочивание — сохраняем текущую длину и локальный оффсет
       var layer_length = current_layer.outPoint - current_layer.inPoint;
       var local_offset = current_layer.inPoint - current_layer.startTime;
 

@@ -198,6 +198,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   const script_start_time = Date.now();
   app.beginUndoGroup(script_filename);
+  app.project.suspendRendering = true;   // скрытое свойство, работает
+  app.disableUpdates = true;             // скрытое свойство, уменьшает перерисовки
 
   const beatComp = app.project.activeItem;
   const beat_layer = beatComp.layer("beat");
@@ -386,7 +388,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time_increment = frameDur * speed;
       current_position += time_increment;
       accumulated_time += time_increment;
-      if (accumulated_time >= (video_end - video_start)) then_accumulated_reach_video_duration = time;
+      if (accumulated_time >= (video_end - video_start) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
       if (current_position >= video_end) current_position = video_start;
       pointers[pointer_index].current_position = current_position;
 
@@ -492,6 +494,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     setValuesAtTimes_called_times++;
   }
 
+  app.disableUpdates = false;
+  app.project.suspendRendering = false;
   app.endUndoGroup();
   const script_end_time = Date.now();
   const script_total_time = (script_end_time - script_start_time) / 1000;
