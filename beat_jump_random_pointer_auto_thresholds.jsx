@@ -375,7 +375,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       // windows_stats_values.push(window_stats);
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
 
-      var input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
+      // var input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
+      var input_C_deactivation_value = window_stats.avg;
       var input_C_activation_value = lerp(window_stats.avg, window_stats.max, activation_deactivation_spread);
       if (input_C_deactivation_value === input_C_activation_value) {
         input_C_deactivation_value_equal_activation_value++; // skip activation if so
@@ -402,10 +403,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
       var FX_triggered = false;
 
-      if (is_FX_active && (input_C_value < input_C_deactivation_value)) {
+      if (is_FX_active && (input_C_value <= input_C_deactivation_value)) {
         is_FX_active = false;
       }
-      if ((!is_FX_active) && (input_C_value > input_C_activation_value)) {
+      if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
         if (input_C_deactivation_value === input_C_activation_value) {
           // skip activation if so
         } else {
