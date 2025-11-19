@@ -75,7 +75,8 @@ function compute_forward_window_stats_init(control_property, work_start_time, fr
     pos_sum: pos_sum,
     pos_count: pos_count,
     last_avg: avg,
-    left_diff: left_diff
+    left_value: left_value,
+    left_diff: left_diff,
   };
 }
 
@@ -93,6 +94,7 @@ function compute_forward_window_stats_step(state, control_property, frame_index)
     var pos_sum = state.pos_sum;
     var pos_count = state.pos_count;
     var last_avg = state.last_avg;
+    var left_value = state.left_value;
     var left_diff = state.left_diff;
 
     var window_start = frame_index;
@@ -117,37 +119,35 @@ function compute_forward_window_stats_step(state, control_property, frame_index)
 
     // левый кадр выходит из окна
     if (frame_index > 0) {
+        sum -= left_value;
+
         if (left_diff < 0) { neg_sum -= -left_diff; neg_count--; }
         else if (left_diff > 0) { pos_sum -= left_diff; pos_count--; }
-
-        var old_value = control_property.valueAtTime(work_start_time + (window_start - 1) * frame_duration, false);
-        sum -= old_value;
     }
 
     // новый кадр входит
-    var new_value = control_property.valueAtTime(work_start_time + actual_window_end * frame_duration, false);
-    sum += new_value;
+    var right_value = control_property.valueAtTime(work_start_time + actual_window_end * frame_duration, false);
+    sum += right_value;
 
     // обновляем min/max очереди
-    while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
-    max_queue.push({ value: new_value, index: actual_window_end });
+    while (max_queue.length && max_queue[max_queue.length - 1].value <= right_value) max_queue.pop();
+    max_queue.push({ value: right_value, index: actual_window_end });
     while (max_queue.length && max_queue[0].index < window_start) max_queue.shift();
 
-    while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
-    min_queue.push({ value: new_value, index: actual_window_end });
+    while (min_queue.length && min_queue[min_queue.length - 1].value >= right_value) min_queue.pop();
+    min_queue.push({ value: right_value, index: actual_window_end });
     while (min_queue.length && min_queue[0].index < window_start) min_queue.shift();
 
     // новое среднее
     var avg = sum / window_frame_count;
 
     // корректируем отклонения
-    var new_diff = new_value - avg;
+    var new_diff = right_value - avg;
     if (new_diff < 0) { neg_sum += -new_diff; neg_count++; }
     else if (new_diff > 0) { pos_sum += new_diff; pos_count++; }
 
     // сохраняем diff левого кадра для следующего шага
-    var next_left_value = control_property.valueAtTime(work_start_time + window_start * frame_duration, false);
-    left_diff = next_left_value - avg;
+    var next_left_diff = current_value - avg;
 
     // формируем объект статистики один раз
     var window_stats = {
@@ -168,7 +168,8 @@ function compute_forward_window_stats_step(state, control_property, frame_index)
     state.pos_sum = pos_sum;
     state.pos_count = pos_count;
     state.last_avg = avg;
-    state.left_diff = left_diff;
+    state.left_value = current_value;
+    state.left_diff = next_left_diff;
     state.last_full_window_stats = window_stats;
 
     return window_stats;
