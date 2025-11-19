@@ -32,18 +32,35 @@ function compute_forward_window_stats_init(control_property, work_start_time, fr
   var sum = 0;
   var min_queue = [];
   var max_queue = [];
+  var neg_sum = 0, neg_count = 0;
+  var pos_sum = 0, pos_count = 0;
 
   // формируем первое окно
   for (var i = 0; i < Math.min(window_frame_count, total_frames); i++) {
     var v = control_property.valueAtTime(work_start_time + i * frame_duration, false);
     sum += v;
 
+    // очереди min/max
     while (max_queue.length && max_queue[max_queue.length - 1].value <= v) max_queue.pop();
     max_queue.push({ value: v, index: i });
 
     while (min_queue.length && min_queue[min_queue.length - 1].value >= v) min_queue.pop();
     min_queue.push({ value: v, index: i });
   }
+
+  var avg = sum / Math.min(window_frame_count, total_frames);
+
+  // рассчитываем средние отрицательные и положительные отклонения
+  for (var i = 0; i < Math.min(window_frame_count, total_frames); i++) {
+    var v = control_property.valueAtTime(work_start_time + i * frame_duration, false);
+    var diff = v - avg;
+    if (diff < 0) { neg_sum += -diff; neg_count++; }
+    else if (diff > 0) { pos_sum += diff; pos_count++; }
+  }
+
+  // сохраняем diff левого кадра для онлайн-обновления
+  var left_value = control_property.valueAtTime(work_start_time, false);
+  var left_diff = left_value - avg;
 
   return {
     sum: sum,
@@ -52,78 +69,109 @@ function compute_forward_window_stats_init(control_property, work_start_time, fr
     window_frame_count: window_frame_count,
     work_start_time: work_start_time,
     frame_duration: frame_duration,
-    total_frames: total_frames
+    total_frames: total_frames,
+    neg_sum: neg_sum,
+    neg_count: neg_count,
+    pos_sum: pos_sum,
+    pos_count: pos_count,
+    last_avg: avg,
+    left_diff: left_diff
   };
 }
 
 function compute_forward_window_stats_step(state, control_property, frame_index) {
-  var window_frame_count = state.window_frame_count;
-  var sum = state.sum;
-  var min_queue = state.min_queue;
-  var max_queue = state.max_queue;
-  var work_start_time = state.work_start_time;
-  var frame_duration = state.frame_duration;
-  var total_frames = state.total_frames;
+    var window_frame_count = state.window_frame_count;
+    var work_start_time = state.work_start_time;
+    var frame_duration = state.frame_duration;
+    var total_frames = state.total_frames;
 
-  var window_start = frame_index;
-  var window_end = frame_index + window_frame_count - 1;
+    var sum = state.sum;
+    var min_queue = state.min_queue;
+    var max_queue = state.max_queue;
+    var neg_sum = state.neg_sum;
+    var neg_count = state.neg_count;
+    var pos_sum = state.pos_sum;
+    var pos_count = state.pos_count;
+    var last_avg = state.last_avg;
+    var left_diff = state.left_diff;
 
-  // учитываем неполное окно на конце
-  var actual_window_end = Math.min(window_end, total_frames - 1);
-  var is_full_window = (actual_window_end - window_start + 1) === window_frame_count;
+    var window_start = frame_index;
+    var window_end = frame_index + window_frame_count - 1;
+    var actual_window_end = Math.min(window_end, total_frames - 1);
+    var is_full_window = (actual_window_end - window_start + 1) === window_frame_count;
 
-  if (frame_index > 0 && is_full_window) {
-    // вычитаем первый кадр предыдущего окна
-    var prev_value = control_property.valueAtTime(work_start_time + (window_start - 1) * frame_duration, false);
-    sum -= prev_value;
-  }
+    var current_value = control_property.valueAtTime(work_start_time + frame_index * frame_duration, false);
 
-  if (is_full_window) {
-    // добавляем новый кадр в окно
+    // ранний return для неполного окна
+    if (!is_full_window) {
+        var last = state.last_full_window_stats;
+        return {
+            avg: last.avg,
+            min: last.min,
+            max: last.max,
+            avg_negative_deviation: last.avg_negative_deviation,
+            avg_positive_deviation: last.avg_positive_deviation,
+            current_value: current_value
+        };
+    }
+
+    // левый кадр выходит из окна
+    if (frame_index > 0) {
+        if (left_diff < 0) { neg_sum -= -left_diff; neg_count--; }
+        else if (left_diff > 0) { pos_sum -= left_diff; pos_count--; }
+
+        var old_value = control_property.valueAtTime(work_start_time + (window_start - 1) * frame_duration, false);
+        sum -= old_value;
+    }
+
+    // новый кадр входит
     var new_value = control_property.valueAtTime(work_start_time + actual_window_end * frame_duration, false);
     sum += new_value;
 
-    // обновляем max очередь
+    // обновляем min/max очереди
     while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
     max_queue.push({ value: new_value, index: actual_window_end });
     while (max_queue.length && max_queue[0].index < window_start) max_queue.shift();
 
-    // обновляем min очередь
     while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
     min_queue.push({ value: new_value, index: actual_window_end });
     while (min_queue.length && min_queue[0].index < window_start) min_queue.shift();
 
-    state.last_full_window_stats = {
-      avg: sum / window_frame_count,
-      min: min_queue[0].value,
-      max: max_queue[0].value,
+    // новое среднее
+    var avg = sum / window_frame_count;
+
+    // корректируем отклонения
+    var new_diff = new_value - avg;
+    if (new_diff < 0) { neg_sum += -new_diff; neg_count++; }
+    else if (new_diff > 0) { pos_sum += new_diff; pos_count++; }
+
+    // сохраняем diff левого кадра для следующего шага
+    var next_left_value = control_property.valueAtTime(work_start_time + window_start * frame_duration, false);
+    left_diff = next_left_value - avg;
+
+    // формируем объект статистики один раз
+    var window_stats = {
+        avg: avg,
+        min: min_queue[0].value,
+        max: max_queue[0].value,
+        avg_negative_deviation: neg_count ? neg_sum / neg_count : 0,
+        avg_positive_deviation: pos_count ? pos_sum / pos_count : 0,
+        current_value: current_value
     };
 
+    // обновляем состояние
     state.sum = sum;
     state.min_queue = min_queue;
     state.max_queue = max_queue;
-  }
+    state.neg_sum = neg_sum;
+    state.neg_count = neg_count;
+    state.pos_sum = pos_sum;
+    state.pos_count = pos_count;
+    state.last_avg = avg;
+    state.left_diff = left_diff;
+    state.last_full_window_stats = window_stats;
 
-  var current_value = control_property.valueAtTime(work_start_time + frame_index * frame_duration, false);
-
-  // для неполного окна повторяем последнее полное окно
-  if (!is_full_window && state.last_full_window_stats) {
-    return {
-      avg: state.last_full_window_stats.avg,
-      min: state.last_full_window_stats.min,
-      max: state.last_full_window_stats.max,
-      current_value: current_value,
-      // frame_index: frame_index,
-    };
-  }
-
-  return {
-    avg: sum / window_frame_count,
-    min: min_queue.length ? min_queue[0].value : null,
-    max: max_queue.length ? max_queue[0].value : null,
-    current_value: current_value,
-    // frame_index: frame_index,
-  };
+    return window_stats;
 }
 
 function get_ADSR_amplitude(time, activation_time, deactivation_time, is_active, attack, delay, sustain_level, release) {
