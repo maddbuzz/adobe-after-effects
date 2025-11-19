@@ -224,8 +224,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // seconds
-  create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 12.0); // 1 + (7 / 1.25) * 2 === 12.2
-  create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 2.0);
+  create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 16.0); // 1 + (7 / 1.25) * 2 === 12.2
+  create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 4.0);
+  create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
@@ -246,6 +247,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
   const scale_ADSR_release = beat_layer.effect("scale_ADSR_release")("Slider").value;
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
+  const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
   const speed_min = beat_layer.effect("speed_min")("Slider").value;
   const S_WarpFishEye_Amount_neg_max = beat_layer.effect("S_WarpFishEye_Amount_neg_max")("Slider").value;
   const S_WarpFishEye_Amount_pos_max = beat_layer.effect("S_WarpFishEye_Amount_pos_max")("Slider").value;
@@ -349,12 +351,17 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const frame_times = new Array(frames_batch_size);
   const frame_values = new Array(frames_batch_size);
 
-  // var get_next_effect_index = (function (sequence) {
-  //   var counter = 0;
-  //   return function () {
-  //     return sequence[(counter++) % sequence.length];
-  //   };
-  // })([1, 0, 1, 2]);
+  function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
+    var x = (src_value - src_low) / (src_high - src_low);
+    x = clamp(x, 0, 1);
+    // находим степень, при которой для src_mid будет получаться spd_mid
+    var exponent = getBaseLog(
+      (src_mid - src_low) / (src_high - src_low),
+      (spd_mid - spd_low) / (spd_high - spd_low)
+    );
+    var spd_value = spd_low + (spd_high - spd_low) * Math.pow(x, exponent);
+    return spd_value;
+  }
 
   for (var batch_start = 0; batch_start < work_frames; batch_start += frames_batch_size) {
     var batch_end = Math.min(batch_start + frames_batch_size, work_frames);
@@ -374,15 +381,16 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         input_C_deactivation_value_equal_activation_value++; // skip activation if so
       }
 
-      var k = (input_C_value - input_C_deactivation_value) / (input_C_activation_value - input_C_deactivation_value); // может получится меньше 0 или больше 1
+      // var k = (input_C_value - input_C_deactivation_value) / (input_C_activation_value - input_C_deactivation_value); // может получится меньше 0 или больше 1
       // var k = (input_C_value - window_stats.min) / (window_stats.max - window_stats.min);
       // var k = (input_C_value - window_stats.avg) / (window_stats.max - window_stats.avg);
-      if (!isFinite(k)) {
-        windows_stats_max_equal_min++;
-        k = 0;
-      }
-      k = clamp(k, 0, 1); // ограничиваем от 0 до 1
-      var speed = lerp(speed_min, speed_max, k);
+      // if (!isFinite(k)) {
+      //   windows_stats_max_equal_min++;
+      //   k = 0;
+      // }
+      // k = clamp(k, 0, 1); // ограничиваем от 0 до 1
+      // var speed = lerp(speed_min, speed_max, k);
+      var speed = get_spd_from_src(input_C_value, window_stats.min, window_stats.avg, window_stats.max, speed_min, speed_avg, speed_max);
 
       var current_position = pointers[pointer_index].current_position;
       var time_increment = frameDur * speed;
@@ -526,6 +534,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
     "scale_ADSR_release = " + scale_ADSR_release + "\n" +
     "speed_max = " + speed_max + "\n" +
+    "speed_avg = " + speed_avg + "\n" +
     "speed_min = " + speed_min + "\n" +
     "S_WarpFishEye_Amount_neg_max = " + S_WarpFishEye_Amount_neg_max + "\n" +
     "S_WarpFishEye_Amount_pos_max = " + S_WarpFishEye_Amount_pos_max + "\n" +
