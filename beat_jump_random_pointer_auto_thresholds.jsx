@@ -28,21 +28,21 @@ function get_video_clips_start_end_times_in_composition(parent_composition, chil
 }
 
 // --- инициализация первого окна ---
-function compute_forward_window_stats_init(control_property, work_start_time, frame_duration, window_frame_count, total_frames) {
+function compute_forward_window_stats_init(control_property, work_start_time, work_total_frames, frame_duration, window_frame_count) {
   var sum = 0;
   var min_queue = [];
   var max_queue = [];
 
   // формируем первое окно
-  for (var i = 0; i < Math.min(window_frame_count, total_frames); i++) {
-    var v = control_property.valueAtTime(work_start_time + i * frame_duration, false);
+  for (var frame = 0; frame < Math.min(window_frame_count, work_total_frames); frame++) {
+    var v = control_property.valueAtTime(work_start_time + frame * frame_duration, false);
     sum += v;
 
     while (max_queue.length && max_queue[max_queue.length - 1].value <= v) max_queue.pop();
-    max_queue.push({ value: v, index: i });
+    max_queue.push({ value: v, index: frame });
 
     while (min_queue.length && min_queue[min_queue.length - 1].value >= v) min_queue.pop();
-    min_queue.push({ value: v, index: i });
+    min_queue.push({ value: v, index: frame });
   }
 
   return {
@@ -52,77 +52,61 @@ function compute_forward_window_stats_init(control_property, work_start_time, fr
     window_frame_count: window_frame_count,
     work_start_time: work_start_time,
     frame_duration: frame_duration,
-    total_frames: total_frames
+    work_total_frames: work_total_frames
   };
 }
 
-function compute_forward_window_stats_step(state, control_property, frame_index) {
+function compute_forward_window_stats_step(state, control_property, work_frame_index) {
   var window_frame_count = state.window_frame_count;
   var sum = state.sum;
   var min_queue = state.min_queue;
   var max_queue = state.max_queue;
   var work_start_time = state.work_start_time;
+  var work_total_frames = state.work_total_frames;
   var frame_duration = state.frame_duration;
-  var total_frames = state.total_frames;
 
-  var window_start = frame_index;
-  var window_end = frame_index + window_frame_count - 1;
+  var window_first_frame = work_frame_index;
+  var window_last_frame = work_frame_index + window_frame_count - 1;
+  const is_full_window = window_last_frame < work_total_frames;
 
-  // учитываем неполное окно на конце
-  var actual_window_end = Math.min(window_end, total_frames - 1);
-  var is_full_window = (actual_window_end - window_start + 1) === window_frame_count;
-
-  if (frame_index > 0 && is_full_window) {
-    // вычитаем первый кадр предыдущего окна
-    var prev_value = control_property.valueAtTime(work_start_time + (window_start - 1) * frame_duration, false);
-    sum -= prev_value;
-  }
+  var prev_value = state.current_value ?? 0;
+  state.current_value = control_property.valueAtTime(work_start_time + window_first_frame * frame_duration, false);
 
   if (is_full_window) {
-    // добавляем новый кадр в окно
-    var new_value = control_property.valueAtTime(work_start_time + actual_window_end * frame_duration, false);
+    // убираеми левый кадр из окна
+    sum -= prev_value;
+
+    // добавляем правый кадр в окно
+    var new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
     sum += new_value;
 
     // обновляем max очередь
     while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
-    max_queue.push({ value: new_value, index: actual_window_end });
-    while (max_queue.length && max_queue[0].index < window_start) max_queue.shift();
+    max_queue.push({ value: new_value, index: window_last_frame });
+    while (max_queue.length && max_queue[0].index < window_first_frame) max_queue.shift();
 
     // обновляем min очередь
     while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
-    min_queue.push({ value: new_value, index: actual_window_end });
-    while (min_queue.length && min_queue[0].index < window_start) min_queue.shift();
+    min_queue.push({ value: new_value, index: window_last_frame });
+    while (min_queue.length && min_queue[0].index < window_first_frame) min_queue.shift();
+
+    state.sum = sum;
+    state.min_queue = min_queue;
+    state.max_queue = max_queue;
 
     state.last_full_window_stats = {
       avg: sum / window_frame_count,
       min: min_queue[0].value,
       max: max_queue[0].value,
     };
-
-    state.sum = sum;
-    state.min_queue = min_queue;
-    state.max_queue = max_queue;
   }
 
-  var current_value = control_property.valueAtTime(work_start_time + frame_index * frame_duration, false);
-
-  // для неполного окна повторяем последнее полное окно
-  if (!is_full_window && state.last_full_window_stats) {
-    return {
-      avg: state.last_full_window_stats.avg,
-      min: state.last_full_window_stats.min,
-      max: state.last_full_window_stats.max,
-      current_value: current_value,
-      // frame_index: frame_index,
-    };
-  }
-
+  // для неполного окна вернется последнее полное окно
   return {
-    avg: sum / window_frame_count,
-    min: min_queue.length ? min_queue[0].value : null,
-    max: max_queue.length ? max_queue[0].value : null,
-    current_value: current_value,
-    // frame_index: frame_index,
+    avg: state.last_full_window_stats.avg,
+    min: state.last_full_window_stats.min,
+    max: state.last_full_window_stats.max,
+    current_value: state.current_value,
   };
 }
 
@@ -209,12 +193,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const video_clips_times = get_video_clips_start_end_times_in_composition(beatComp, "composition_video");
   // alert(JSON.stringify(video_clips_times));
 
-  const video_start = 0;
-  const video_end = videoComp.duration;
-  const frameDur = 1.0 / beatComp.frameRate;
-  const work_start = beatComp.workAreaStart;
-  const work_end = work_start + beatComp.workAreaDuration;
-  const work_frames = Math.floor((work_end - work_start) / frameDur) + 1;
+  const video_start_time = 0;
+  const video_end_time = videoComp.duration;
+  const frame_duration = 1.0 / beatComp.frameRate;
+  const work_start_time = beatComp.workAreaStart;
+  const work_end_time = work_start_time + beatComp.workAreaDuration;
+  const work_total_frames = Math.floor((work_end_time - work_start_time) / frame_duration) + 1;
 
   create_new_or_return_existing_control(beat_layer, "frames_batch_size", "Slider", 5000);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
@@ -312,7 +296,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   function get_pointers() {
     get_pointers_called++;
     if (time_remap_use_clips_for_pointers) return get_pointers_from_clips(video_clips_times, time_remap_pointers_total);
-    else return get_even_pointers(video_start, video_end, time_remap_pointers_total, 0);
+    else return get_even_pointers(video_start_time, video_end_time, time_remap_pointers_total, 0);
   }
 
   var pointers = get_pointers();
@@ -342,8 +326,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var input_C_deactivation_value_equal_activation_value = 0;
   var windows_stats_max_equal_min = 0;
 
-  var window_frame_count = Math.max(1, Math.floor(auto_correction_window / frameDur));
-  var state = compute_forward_window_stats_init(input_C_control, work_start, frameDur, window_frame_count, work_frames);
+  var window_frame_count = Math.max(1, Math.floor(auto_correction_window / frame_duration));
+  var state = compute_forward_window_stats_init(input_C_control, work_start_time, work_total_frames, frame_duration, window_frame_count);
 
   var setValuesAtTimes_total_time = 0;
   var setValuesAtTimes_called_times = 0;
@@ -363,13 +347,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     return spd_value;
   }
 
-  for (var batch_start = 0; batch_start < work_frames; batch_start += frames_batch_size) {
-    var batch_end = Math.min(batch_start + frames_batch_size, work_frames);
+  for (var batch_start = 0; batch_start < work_total_frames; batch_start += frames_batch_size) {
+    var batch_end = Math.min(batch_start + frames_batch_size, work_total_frames);
     var batch_length = batch_end - batch_start;
 
     for (var index_in_batch = 0; index_in_batch < batch_length; index_in_batch++) {
       var frame = batch_start + index_in_batch;
-      var time = work_start + frame * frameDur;
+      var time = work_start_time + frame * frame_duration;
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
       // windows_stats_values.push(window_stats);
@@ -394,11 +378,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var speed = get_spd_from_src(input_C_value, window_stats.min, window_stats.avg, window_stats.max, speed_min, speed_avg, speed_max);
 
       var current_position = pointers[pointer_index].current_position;
-      var time_increment = frameDur * speed;
+      var time_increment = frame_duration * speed;
       current_position += time_increment;
       accumulated_time += time_increment;
-      if (accumulated_time >= (video_end - video_start) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
-      if (current_position >= video_end) current_position = video_start;
+      if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
+      if (current_position >= video_end_time) current_position = video_start_time;
       pointers[pointer_index].current_position = current_position;
 
       var FX_triggered = false;
@@ -517,8 +501,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   // file.close();
   // file.execute();
 
-  const work_area_duration_minutes = (work_end - work_start) / 60;
-  const video_duration_minutes = (video_end - video_start) / 60;
+  const work_area_duration_minutes = (work_end_time - work_start_time) / 60;
+  const video_duration_minutes = (video_end_time - video_start_time) / 60;
   const accumulated_time_minutes = accumulated_time / 60;
 
   alert(
