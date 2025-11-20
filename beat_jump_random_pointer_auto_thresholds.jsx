@@ -1,32 +1,3 @@
-function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name) {
-  var child_composition_layer = parent_composition.layer(child_composition_layer_name);
-  if (!child_composition_layer || !(child_composition_layer.source instanceof CompItem)) {
-    throw new Error("Указанный слой не является композицией: " + child_composition_layer_name);
-  }
-
-  var child_composition = child_composition_layer.source;
-  var result = [];
-
-  // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
-  for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
-    var layer = child_composition.layer(layer_index);
-
-    if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
-      var clip_name = layer.name;
-      var clip_start_time = Math.max(0, layer.inPoint);
-      var clip_end_time = Math.max(0, layer.outPoint);
-
-      result.push({
-        // clip_name: clip_name,
-        clip_start_time: clip_start_time,
-        clip_end_time: clip_end_time,
-      });
-    }
-  }
-
-  return result;
-}
-
 // --- инициализация первого окна ---
 function compute_forward_window_stats_init(control_property, work_start_time, work_total_frames, frame_duration, window_frame_count) {
   var sum = 0;
@@ -108,6 +79,35 @@ function compute_forward_window_stats_step(state, control_property, work_frame_i
     max: state.last_full_window_stats.max,
     current_value: state.current_value,
   };
+}
+
+function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name) {
+  var child_composition_layer = parent_composition.layer(child_composition_layer_name);
+  if (!child_composition_layer || !(child_composition_layer.source instanceof CompItem)) {
+    throw new Error("Указанный слой не является композицией: " + child_composition_layer_name);
+  }
+
+  var child_composition = child_composition_layer.source;
+  var result = [];
+
+  // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
+  for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
+    var layer = child_composition.layer(layer_index);
+
+    if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
+      var clip_name = layer.name;
+      var clip_start_time = Math.max(0, layer.inPoint);
+      var clip_end_time = Math.max(0, layer.outPoint);
+
+      result.push({
+        // clip_name: clip_name,
+        clip_start_time: clip_start_time,
+        clip_end_time: clip_end_time,
+      });
+    }
+  }
+
+  return result;
 }
 
 function get_ADSR_amplitude(time, activation_time, deactivation_time, is_active, attack, delay, sustain_level, release) {
