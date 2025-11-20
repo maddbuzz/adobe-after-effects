@@ -44,7 +44,7 @@ function compute_forward_window_stats_step(state, control_property, work_frame_i
   var window_last_frame = work_frame_index + window_frame_count - 1;
   const is_full_window = window_last_frame < work_total_frames;
 
-  var prev_value = state.current_value ?? 0;
+  var prev_value = state.current_value !== undefined ? state.current_value : 0;
   state.current_value = control_property.valueAtTime(work_start_time + window_first_frame * frame_duration, false);
 
   if (is_full_window) {
@@ -332,6 +332,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   var input_C_deactivation_value_equal_activation_value = 0;
   var windows_stats_max_equal_min = 0;
+  var input_C_deactivation_value = inputs_ABC_min_value;
+  var input_C_activation_value = inputs_ABC_max_value;
+  var speed_inputs = undefined;
 
   var window_frame_count = Math.max(1, Math.floor(auto_correction_window / frame_duration));
   var state = compute_forward_window_stats_init(input_C_control, work_start_time, work_total_frames, frame_duration, window_frame_count);
@@ -366,11 +369,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       // windows_stats_values.push(window_stats);
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
 
-      // var input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
-      var input_C_deactivation_value = window_stats.avg;
-      var input_C_activation_value = lerp(window_stats.avg, window_stats.max, activation_deactivation_spread);
-      if (input_C_deactivation_value === input_C_activation_value) {
-        input_C_deactivation_value_equal_activation_value++; // skip activation if so
+      if (!is_FX_active) {
+        input_C_activation_value = lerp(window_stats.avg, window_stats.max, activation_deactivation_spread);
       }
 
       // var k = (input_C_value - input_C_deactivation_value) / (input_C_activation_value - input_C_deactivation_value); // может получится меньше 0 или больше 1
@@ -382,10 +382,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       // }
       // k = clamp(k, 0, 1); // ограничиваем от 0 до 1
       // var speed = lerp(speed_min, speed_max, k);
-      var speed = get_spd_from_src(input_C_value, window_stats.min, window_stats.avg, window_stats.max, speed_min, speed_avg, speed_max);
+      if (!speed_inputs) speed_inputs = window_stats;
+      var speed_output = get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
+      if (input_C_value <= speed_inputs.min) speed_inputs = undefined;
 
       var current_position = pointers[pointer_index].current_position;
-      var time_increment = frame_duration * speed;
+      var time_increment = frame_duration * speed_output;
       current_position += time_increment;
       accumulated_time += time_increment;
       if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
@@ -398,8 +400,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         is_FX_active = false;
       }
       if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
+        // input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
+        input_C_deactivation_value = window_stats.avg;
+
         if (input_C_deactivation_value === input_C_activation_value) {
-          // skip activation if so
+          input_C_deactivation_value_equal_activation_value++; // skip activation if so
         } else {
           is_FX_active = true;
           FX_triggered = true;
@@ -411,7 +416,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         var prev_effect_index = effect_index;
         effect_triggered_total[prev_effect_index]++;
         effect_index = (prev_effect_index + 1 + getRandomInt(2)) % 3;
-        // effect_index = get_next_effect_index();
 
         if (prev_effect_index === 0) { // horizontal inversion
           hue += 0.5;
