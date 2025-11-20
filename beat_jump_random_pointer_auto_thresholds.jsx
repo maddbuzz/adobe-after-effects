@@ -30,13 +30,15 @@ function get_video_clips_start_end_times_in_composition(parent_composition, chil
 // --- инициализация первого окна ---
 function compute_forward_window_stats_init(control_property, work_start_time, work_total_frames, frame_duration, window_frame_count) {
   var sum = 0;
+  var sum_count = 0;
   var min_queue = [];
   var max_queue = [];
 
-  // формируем первое окно
-  for (var frame = 0; frame < Math.min(window_frame_count, work_total_frames); frame++) {
+  // формируем первое полу-окно
+  for (var frame = 0; frame < window_frame_count / 2; frame++) {
     var v = control_property.valueAtTime(work_start_time + frame * frame_duration, false);
     sum += v;
+    sum_count++;
 
     while (max_queue.length && max_queue[max_queue.length - 1].value <= v) max_queue.pop();
     max_queue.push({ value: v, index: frame });
@@ -45,68 +47,94 @@ function compute_forward_window_stats_init(control_property, work_start_time, wo
     min_queue.push({ value: v, index: frame });
   }
 
+  const first_value = control_property.valueAtTime(work_start_time, false);
+
+  // возвращаем state для последующих вызовов compute_forward_window_stats_step():
   return {
-    sum: sum,
-    min_queue: min_queue,
-    max_queue: max_queue,
     window_frame_count: window_frame_count,
     work_start_time: work_start_time,
     frame_duration: frame_duration,
-    work_total_frames: work_total_frames
+    work_total_frames: work_total_frames,
+    sum: sum,
+    sum_count: sum_count,
+    min_queue: min_queue,
+    max_queue: max_queue,
+    sliding_min: first_value,
+    sliding_max: first_value,
   };
 }
 
 function compute_forward_window_stats_step(state, control_property, work_frame_index) {
   var window_frame_count = state.window_frame_count;
   var sum = state.sum;
+  var sum_count = state.sum_count;
   var min_queue = state.min_queue;
   var max_queue = state.max_queue;
   var work_start_time = state.work_start_time;
   var work_total_frames = state.work_total_frames;
   var frame_duration = state.frame_duration;
 
-  var window_first_frame = work_frame_index;
-  var window_last_frame = work_frame_index + window_frame_count - 1;
-  const is_full_window = window_last_frame < work_total_frames;
+  const half_window_frames = window_frame_count / 2;
+  var window_first_frame = Math.max(0, work_frame_index - half_window_frames);
+  var window_last_frame = Math.min(work_total_frames, work_frame_index + half_window_frames) - 1;
 
-  var prev_value = state.current_value ?? 0;
-  state.current_value = control_property.valueAtTime(work_start_time + window_first_frame * frame_duration, false);
+  var current_value = control_property.valueAtTime(work_start_time + work_frame_index * frame_duration, false);
 
-  if (is_full_window) {
+  if (window_first_frame > 0) {
+    var prev_value = control_property.valueAtTime(work_start_time + (window_first_frame - 1) * frame_duration, false);
     // убираеми левый кадр из окна
     sum -= prev_value;
-
-    // добавляем правый кадр в окно
-    var new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
-    sum += new_value;
-
-    // обновляем max очередь
-    while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
-    max_queue.push({ value: new_value, index: window_last_frame });
-    while (max_queue.length && max_queue[0].index < window_first_frame) max_queue.shift();
-
-    // обновляем min очередь
-    while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
-    min_queue.push({ value: new_value, index: window_last_frame });
-    while (min_queue.length && min_queue[0].index < window_first_frame) min_queue.shift();
-
-    state.sum = sum;
-    state.min_queue = min_queue;
-    state.max_queue = max_queue;
-
-    state.last_full_window_stats = {
-      avg: sum / window_frame_count,
-      min: min_queue[0].value,
-      max: max_queue[0].value,
-    };
+    sum_count--;
   }
 
-  // для неполного окна вернется последнее полное окно
+  var new_value = undefined;
+  if (window_last_frame <= work_total_frames) {
+    new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
+    // добавляем правый кадр в окно
+    sum += new_value;
+    sum_count++;
+  }
+
+  // обновляем max очередь
+  if (new_value !== undefined) {
+    while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
+    max_queue.push({ value: new_value, index: window_last_frame });
+  }
+  while (max_queue.length && max_queue[0].index < window_first_frame) max_queue.shift();
+
+  // обновляем min очередь
+  if (new_value !== undefined) {
+    while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
+    min_queue.push({ value: new_value, index: window_last_frame });
+  }
+  while (min_queue.length && min_queue[0].index < window_first_frame) min_queue.shift();
+
+  state.sum = sum;
+  state.sum_count = sum_count;
+  state.min_queue = min_queue;
+  state.max_queue = max_queue;
+
+  var max_value = max_queue[0].value;
+  var max_index = max_queue[0].index;
+  var sliding_max = state.sliding_max;
+  var steps_to_max = max_index - work_frame_index;
+  sliding_max = lerp(sliding_max, max_value, 1 / (steps_to_max + 1));
+  state.sliding_max = sliding_max;
+
+  var min_value = min_queue[0].value;
+  var min_index = min_queue[0].index;
+  var sliding_min = state.sliding_min;
+  var steps_to_min = min_index - work_frame_index;
+  sliding_min = lerp(sliding_min, min_value, 1 / (steps_to_min + 1));
+  state.sliding_min = sliding_min;
+
   return {
-    avg: state.last_full_window_stats.avg,
-    min: state.last_full_window_stats.min,
-    max: state.last_full_window_stats.max,
-    current_value: state.current_value,
+    min: min_value,
+    sliding_min: state.sliding_min,
+    avg: sum / sum_count,
+    current_value: current_value,
+    sliding_max: state.sliding_max,
+    max: max_value,
   };
 }
 
@@ -356,12 +384,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time = work_start_time + frame * frame_duration;
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
-      // windows_stats_values.push(window_stats);
+      windows_stats_values.push(window_stats);
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
 
-      // var input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
+      // var input_C_deactivation_value = lerp(window_stats.avg, window_stats.sliding_min, activation_deactivation_spread);
       var input_C_deactivation_value = window_stats.avg;
-      var input_C_activation_value = lerp(window_stats.avg, window_stats.max, activation_deactivation_spread);
+      var input_C_activation_value = lerp(window_stats.avg, window_stats.sliding_max, activation_deactivation_spread);
       if (input_C_deactivation_value === input_C_activation_value) {
         input_C_deactivation_value_equal_activation_value++; // skip activation if so
       }
@@ -495,11 +523,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   const pointers_number_after = pointers.length;
 
-  // var file = new File("~/Desktop/effect_triggered_values.json");
-  // file.open("w");
-  // file.write(JSON.stringify(effect_triggered_values, null, 2)); // null,2 — форматирование с отступами
-  // file.close();
-  // file.execute();
+  var file = new File("~/Desktop/windows_stats_values.json");
+  file.open("w");
+  file.write(JSON.stringify(windows_stats_values, null, 2)); // null,2 — форматирование с отступами
+  file.close();
+  file.execute();
 
   const work_area_duration_minutes = (work_end_time - work_start_time) / 60;
   const video_duration_minutes = (video_end_time - video_start_time) / 60;
