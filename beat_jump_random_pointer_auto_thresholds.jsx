@@ -1,6 +1,7 @@
 // --- инициализация первого окна ---
 function compute_forward_window_stats_init(control_property, work_start_time, work_total_frames, frame_duration, window_frame_count) {
   var sum = 0;
+  var sum_count = 0;
   var min_queue = [];
   var max_queue = [];
 
@@ -8,6 +9,7 @@ function compute_forward_window_stats_init(control_property, work_start_time, wo
   for (var frame = 0; frame < Math.min(window_frame_count, work_total_frames); frame++) {
     var v = control_property.valueAtTime(work_start_time + frame * frame_duration, false);
     sum += v;
+    sum_count++;
 
     while (max_queue.length && max_queue[max_queue.length - 1].value <= v) max_queue.pop();
     max_queue.push({ value: v, index: frame });
@@ -18,6 +20,7 @@ function compute_forward_window_stats_init(control_property, work_start_time, wo
 
   return {
     sum: sum,
+    sum_count: sum_count,
     min_queue: min_queue,
     max_queue: max_queue,
     window_frame_count: window_frame_count,
@@ -30,6 +33,7 @@ function compute_forward_window_stats_init(control_property, work_start_time, wo
 function compute_forward_window_stats_step(state, control_property, work_frame_index) {
   var window_frame_count = state.window_frame_count;
   var sum = state.sum;
+  var sum_count = state.sum_count;
   var min_queue = state.min_queue;
   var max_queue = state.max_queue;
   var work_start_time = state.work_start_time;
@@ -46,10 +50,12 @@ function compute_forward_window_stats_step(state, control_property, work_frame_i
   if (is_full_window) {
     // убираеми левый кадр из окна
     sum -= prev_value;
+    sum_count--;
 
     // добавляем правый кадр в окно
     var new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
     sum += new_value;
+    sum_count++;
 
     // обновляем max очередь
     while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
@@ -62,11 +68,12 @@ function compute_forward_window_stats_step(state, control_property, work_frame_i
     while (min_queue.length && min_queue[0].index < window_first_frame) min_queue.shift();
 
     state.sum = sum;
+    state.sum_count = sum_count;
     state.min_queue = min_queue;
     state.max_queue = max_queue;
 
     state.last_full_window_stats = {
-      avg: sum / window_frame_count,
+      avg: sum / sum_count,
       min: min_queue[0].value,
       max: max_queue[0].value,
     };
