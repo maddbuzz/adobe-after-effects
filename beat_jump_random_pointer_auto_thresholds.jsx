@@ -225,6 +225,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "time_remap_pointers_total", "Slider", 2); // if (time_remap_use_clips_for_pointers === false) then best set to 3+
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then time_remap_pointers_total sets total pointers for ONE clip
   create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "STOP_IF_VIDEO_DURATION_REACHED", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "STOP_IF_ONE_POINTER_LEFT", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
 
@@ -247,6 +249,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const time_remap_pointers_total = beat_layer.effect("time_remap_pointers_total")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
+  const STOP_IF_VIDEO_DURATION_REACHED = beat_layer.effect("STOP_IF_VIDEO_DURATION_REACHED")("Checkbox").value;
+  const STOP_IF_ONE_POINTER_LEFT = beat_layer.effect("STOP_IF_ONE_POINTER_LEFT")("Checkbox").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
 
@@ -357,7 +361,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     return spd_value;
   }
 
+  var stop_processing = false;
   for (var batch_start = 0; batch_start < work_total_frames; batch_start += frames_batch_size) {
+    if (stop_processing) break;
+
     var batch_end = Math.min(batch_start + frames_batch_size, work_total_frames);
     var batch_length = batch_end - batch_start;
 
@@ -390,7 +397,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time_increment = frame_duration * speed_output;
       current_position += time_increment;
       accumulated_time += time_increment;
-      if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
+      if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) {
+        then_accumulated_reach_video_duration = time;
+        if (STOP_IF_VIDEO_DURATION_REACHED) {
+          stop_processing = true;
+          break;
+        }
+      }
       if (current_position >= video_end_time) current_position = video_start_time;
       pointers[pointer_index].current_position = current_position;
 
@@ -431,7 +444,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           var target_position = pointers[pointer_index].target_position;
           var prev_pointer_index = pointer_index;
           if (starting_position > current_position || current_position >= target_position) pointers.splice(pointer_index, 1);
-          if (pointers.length < 2) pointers = get_pointers();
+          if (pointers.length < 2) {
+            if (STOP_IF_ONE_POINTER_LEFT) {
+              stop_processing = true;
+              break;
+            }
+            else pointers = get_pointers();
+          }
 
           if (time_remap_fixed_pointers_order) {
             pointer_index = (prev_pointer_index + 1) % pointers.length;
@@ -539,6 +558,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "time_remap_pointers_total = " + time_remap_pointers_total + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
+    "STOP_IF_VIDEO_DURATION_REACHED = " + STOP_IF_VIDEO_DURATION_REACHED + "\n" +
+    "STOP_IF_ONE_POINTER_LEFT = " + STOP_IF_ONE_POINTER_LEFT + "\n" +
     "hue_drift = " + hue_drift + "\n" +
     "auto_correction_window = " + auto_correction_window + "\n" +
     "get_pointers_called = " + get_pointers_called + "\n" +
