@@ -363,7 +363,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   var stop_processing = false;
   for (var batch_start = 0; batch_start < work_total_frames; batch_start += frames_batch_size) {
-    if (stop_processing) break;
+    if (stop_processing) {
+      var processed_time = batch_start * frame_duration;
+      beatComp.workAreaDuration = processed_time;
+      break;
+    }
 
     var batch_end = Math.min(batch_start + frames_batch_size, work_total_frames);
     var batch_length = batch_end - batch_start;
