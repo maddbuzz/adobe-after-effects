@@ -194,7 +194,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   const beatComp = app.project.activeItem;
   const beat_layer = beatComp.layer("beat");
-  if (!beat_layer) throw ("!beat_layer");
+  if (!beat_layer) throw new Error("!beat_layer");
 
   const videoComp = getCompByName("composition_video");
   const video_clips_times = get_video_clips_start_end_times_in_composition(beatComp, "composition_video");
@@ -210,7 +210,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "frames_batch_size", "Slider", 5000);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
-  create_new_or_return_existing_control(beat_layer, "activation_deactivation_spread", "Slider", 0.5); // [0, 1] (0 -> input_C_activation_value === input_C_deactivation_value === avg)
+  create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
+  create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -234,7 +235,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
   const inputs_ABC_max_value = beat_layer.effect("inputs_ABC_max_value")("Slider").value;
   const inputs_ABC_min_value = beat_layer.effect("inputs_ABC_min_value")("Slider").value;
-  const activation_deactivation_spread = beat_layer.effect("activation_deactivation_spread")("Slider").value;
+  const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
+  const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
   const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
@@ -374,11 +376,17 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time = work_start_time + frame * frame_duration;
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
+      if (window_stats.max < window_stats.min) throw new Error("window_stats.max < window_stats.min");
+      if (window_stats.min > window_stats.max) throw new Error("window_stats.min > window_stats.max");
+      if (window_stats.avg < window_stats.min) throw new Error("window_stats.avg < window_stats.min");
+      if (window_stats.avg > window_stats.max) throw new Error("window_stats.avg > window_stats.max");
+      if (window_stats.current_value < window_stats.min) throw new Error("window_stats.current_value < window_stats.min");
+      if (window_stats.current_value > window_stats.max) throw new Error("window_stats.current_value > window_stats.max");
       // windows_stats_values.push(window_stats);
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
 
       if (!is_FX_active) {
-        input_C_activation_value = lerp(window_stats.avg, window_stats.max, activation_deactivation_spread);
+        input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
       }
 
       // var k = (input_C_value - input_C_deactivation_value) / (input_C_activation_value - input_C_deactivation_value); // может получится меньше 0 или больше 1
@@ -414,8 +422,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         is_FX_active = false;
       }
       if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
-        // input_C_deactivation_value = lerp(window_stats.avg, window_stats.min, activation_deactivation_spread);
-        input_C_deactivation_value = window_stats.avg;
+        // input_C_deactivation_value = window_stats.avg;
+        input_C_deactivation_value = lerp(window_stats.min, window_stats.avg, deactivate_min_avg);
 
         if (input_C_deactivation_value === input_C_activation_value) {
           input_C_deactivation_value_equal_activation_value++; // skip activation if so
@@ -555,7 +563,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "frames_batch_size = " + frames_batch_size + "\n" +
     "inputs_ABC_max_value = " + inputs_ABC_max_value + "\n" +
     "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
-    "activation_deactivation_spread = " + activation_deactivation_spread + "\n" +
+    "deactivate_min_avg = " + deactivate_min_avg + "\n" +
+    "activate_avg_max = " + activate_avg_max + "\n" +
     "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
     "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
     "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
