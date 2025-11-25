@@ -582,8 +582,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "accumulated_time_minutes / video_duration_minutes = " + accumulated_time_minutes / video_duration_minutes + "\n" +
     "then_accumulated_reach_video_duration = " + then_accumulated_reach_video_duration + "\n" +
     "video_duration_minutes = " + video_duration_minutes + "\n" +
-    "work_area_duration_minutes / video_duration_minutes = " + work_area_duration_minutes / video_duration_minutes + "\n" +
-    "work_area_duration_minutes = " + work_area_duration_minutes + "\n" +
+    "processed_duration_minutes / video_duration_minutes = " + processed_duration_minutes / video_duration_minutes + "\n" +
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
