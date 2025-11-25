@@ -545,6 +545,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const video_duration_minutes = (video_end_time - video_start_time) / 60;
   const accumulated_time_minutes = accumulated_time / 60;
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
+  const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
 
   alert(
     script_filename + "\n" +
@@ -583,9 +584,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "video_duration_minutes = " + video_duration_minutes + "\n" +
     "work_area_duration_minutes / video_duration_minutes = " + work_area_duration_minutes / video_duration_minutes + "\n" +
     "work_area_duration_minutes = " + work_area_duration_minutes + "\n" +
+    "processed_duration_minutes = " + processed_duration_minutes + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
-    "FX_triggered_per_minute = " + FX_triggered_total / work_area_duration_minutes + "\n" +
-    "FX_triggered_avg_period_seconds = " + work_area_duration_minutes * 60 / FX_triggered_total + "\n" +
+    "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
+    "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
