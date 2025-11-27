@@ -287,7 +287,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         number: index + index_offset,
         starting_position: time,
         current_position: time,
-        target_position: time + between,
+        target_position: time + between - frame_duration,
+        direction: +1,
       })
     }
     return pointers;
@@ -404,10 +405,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var speed_output = get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
       if (input_C_value <= speed_inputs.min) speed_inputs = undefined;
 
+      var starting_position = pointers[pointer_index].starting_position;
+      var target_position = pointers[pointer_index].target_position;
       var current_position = pointers[pointer_index].current_position;
+      var direction = pointers[pointer_index].direction;
       var time_increment = frame_duration * speed_output;
-      current_position += time_increment;
-      accumulated_time += time_increment;
+      current_position += time_increment * direction;
+      accumulated_time += Math.abs(time_increment);
       if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) {
         then_accumulated_reach_video_duration = time;
         if (STOP_IF_VIDEO_DURATION_REACHED) {
@@ -415,7 +419,14 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           break;
         }
       }
-      if (current_position >= video_end_time) current_position = video_start_time;
+      if (current_position > target_position) {
+        current_position = target_position;
+        pointers[pointer_index].direction = -1;
+      }
+      if (current_position < starting_position) {
+        current_position = starting_position;
+        pointers[pointer_index].direction = +1;
+      }
       pointers[pointer_index].current_position = current_position;
 
       var FX_triggered = false;
@@ -453,10 +464,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         }
         else if (prev_effect_index === 2) { // jump in time
           hue = getRandomInRange(0, 1);
-          var starting_position = pointers[pointer_index].starting_position;
-          var target_position = pointers[pointer_index].target_position;
           var prev_pointer_index = pointer_index;
-          if (starting_position > current_position || current_position >= target_position) pointers.splice(pointer_index, 1);
+          // var starting_position = pointers[pointer_index].starting_position;
+          // var target_position = pointers[pointer_index].target_position;
+          // if (starting_position > current_position || current_position >= target_position) pointers.splice(pointer_index, 1);
+          if (pointers[pointer_index].direction < 0) pointers.splice(pointer_index, 1);
           if (pointers.length < 2) {
             if (STOP_IF_ONE_POINTER_LEFT) {
               time_processing_stopped_at = time;
