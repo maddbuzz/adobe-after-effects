@@ -212,6 +212,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
+  create_new_or_return_existing_control(beat_layer, "dont_repeat_same_effect", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -237,6 +238,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const inputs_ABC_min_value = beat_layer.effect("inputs_ABC_min_value")("Slider").value;
   const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
+  const dont_repeat_same_effect = beat_layer.effect("dont_repeat_same_effect")("Checkbox").value;
   const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
@@ -437,7 +439,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       if (FX_triggered) {
         var prev_effect_index = effect_index;
         effect_triggered_total[prev_effect_index]++;
-        effect_index = (prev_effect_index + 1 + getRandomInt(2)) % 3;
+        effect_index = dont_repeat_same_effect
+          ? (prev_effect_index + 1 + getRandomInt(2)) % 3
+          : getRandomInt(3);
 
         if (prev_effect_index === 0) { // horizontal inversion
           hue += 0.5;
@@ -565,6 +569,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
     "activate_avg_max = " + activate_avg_max + "\n" +
+    "dont_repeat_same_effect = " + dont_repeat_same_effect + "\n" +
     "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
     "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
     "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
