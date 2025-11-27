@@ -379,6 +379,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time = work_start_time + frame * frame_duration;
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
+      // С этими проверками 129 секунд - без них 131 секунд - вообще никакого замедления не вызывают:
       if (window_stats.max < window_stats.min) throw new Error("window_stats.max < window_stats.min");
       if (window_stats.min > window_stats.max) throw new Error("window_stats.min > window_stats.max");
       if (window_stats.avg < window_stats.min) throw new Error("window_stats.avg < window_stats.min");
