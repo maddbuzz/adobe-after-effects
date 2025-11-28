@@ -227,8 +227,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "time_remap_pointers_total", "Slider", 2); // if (time_remap_use_clips_for_pointers === false) then best set to 3+
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then time_remap_pointers_total sets total pointers for ONE clip
   create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
-  create_new_or_return_existing_control(beat_layer, "STOP_IF_VIDEO_DURATION_REACHED", "Checkbox", false);
-  create_new_or_return_existing_control(beat_layer, "STOP_IF_ONE_POINTER_LEFT", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
 
@@ -253,8 +252,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const time_remap_pointers_total = beat_layer.effect("time_remap_pointers_total")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
-  const STOP_IF_VIDEO_DURATION_REACHED = beat_layer.effect("STOP_IF_VIDEO_DURATION_REACHED")("Checkbox").value;
-  const STOP_IF_ONE_POINTER_LEFT = beat_layer.effect("STOP_IF_ONE_POINTER_LEFT")("Checkbox").value;
+  const POINTERS_LEFT_TO_STOP = beat_layer.effect("POINTERS_LEFT_TO_STOP")("Slider").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
 
@@ -289,6 +287,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         current_position: time,
         target_position: time + between - frame_duration,
         direction: +1,
+        bounced_total: 0,
       })
     }
     return pointers;
@@ -319,6 +318,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var pointer_index = getRandomInt(pointers.length);
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
+  var bounced_total_max = 0;
 
   var accumulated_time = 0;
   var then_accumulated_reach_video_duration = null;
@@ -412,23 +412,21 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var direction = pointers[pointer_index].direction;
       var time_increment = frame_duration * speed_output;
       current_position += time_increment * direction;
-      accumulated_time += Math.abs(time_increment);
-      if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) {
-        then_accumulated_reach_video_duration = time;
-        if (STOP_IF_VIDEO_DURATION_REACHED) {
-          time_processing_stopped_at = time;
-          break;
-        }
-      }
       if (current_position > target_position) {
         current_position = target_position;
         pointers[pointer_index].direction = -1;
+        pointers[pointer_index].bounced_total++;
       }
       if (current_position < starting_position) {
         current_position = starting_position;
         pointers[pointer_index].direction = +1;
+        pointers[pointer_index].bounced_total++;
       }
+      if (bounced_total_max < pointers[pointer_index].bounced_total) bounced_total_max = pointers[pointer_index].bounced_total;
       pointers[pointer_index].current_position = current_position;
+
+      accumulated_time += (pointers[pointer_index].bounced_total ? 0 : time_increment);
+      if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
 
       var FX_triggered = false;
 
@@ -466,22 +464,25 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         else if (prev_effect_index === 2) { // jump in time
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
-          // var starting_position = pointers[pointer_index].starting_position;
-          // var target_position = pointers[pointer_index].target_position;
-          // if (starting_position > current_position || current_position >= target_position) pointers.splice(pointer_index, 1);
-          if (pointers[pointer_index].direction < 0) pointers.splice(pointer_index, 1);
-          if (pointers.length < 2) {
-            if (STOP_IF_ONE_POINTER_LEFT) {
-              time_processing_stopped_at = time;
-              break;
-            }
-            else pointers = get_pointers();
+
+          var spliced = false;
+          if (pointers[pointer_index].bounced_total) {
+            pointers.splice(pointer_index, 1);
+            spliced = true;
+          }
+          if (pointers.length <= POINTERS_LEFT_TO_STOP) {
+            time_processing_stopped_at = time;
+            break;
           }
 
           if (time_remap_fixed_pointers_order) {
-            pointer_index = (prev_pointer_index + 1) % pointers.length;
+            pointer_index = spliced
+              ? prev_pointer_index % pointers.length
+              : (prev_pointer_index + 1) % pointers.length;
           } else {
-            pointer_index = (prev_pointer_index + 1 + getRandomInt(pointers.length - 1)) % pointers.length;
+            pointer_index = spliced
+              ? getRandomInt(pointers.length)
+              : (prev_pointer_index + 1 + getRandomInt(pointers.length - 1)) % pointers.length;
           }
 
           pointers_counters[pointers[pointer_index].number]++;
@@ -597,9 +598,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "time_remap_pointers_total = " + time_remap_pointers_total + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
-    "STOP_IF_VIDEO_DURATION_REACHED = " + STOP_IF_VIDEO_DURATION_REACHED + "\n" +
-    "STOP_IF_ONE_POINTER_LEFT = " + STOP_IF_ONE_POINTER_LEFT + "\n" +
+    "POINTERS_LEFT_TO_STOP = " + POINTERS_LEFT_TO_STOP + "\n" +
     stopped_at_message +
+    "bounced_total_max = " + bounced_total_max + "\n" +
     "hue_drift = " + hue_drift + "\n" +
     "auto_correction_window = " + auto_correction_window + "\n" +
     "get_pointers_called = " + get_pointers_called + "\n" +
