@@ -274,9 +274,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var curr_value = beat_layer.effect("BCC Beat Reactor")("Output Value C").valueAtTime(time, false);
   */
   create_new_or_return_existing_control(beat_layer, "script_output", "Color");
-  create_new_or_return_existing_control(beat_layer, "script_output1", "Color");
+  create_new_or_return_existing_control(beat_layer, "script_output1", "Slider");
   const script_output0_control = beat_layer.effect("script_output")("Color");
-  const script_output1_control = beat_layer.effect("script_output1")("Color");
+  const script_output1_control = beat_layer.effect("script_output1")("Slider");
 
   const input_C_control = beat_layer.effect("BCC Beat Reactor")("Output Value C"); // в выражении для Amount эффекта S_WarpFishEye: -thisComp.layer("beat").effect("BCC Beat Reactor")("Output Value C") * 0.25
   // const input_A_control = beat_layer.effect("BCC Beat Reactor")("Output Value A");
@@ -341,8 +341,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   var scale_ADSR_activation_time = null;
   var scale_ADSR_deactivation_time = null;
-  var center_point_x = work_width / 2;
-  var center_point_y = work_height / 2;
+  // var center_point_x = work_width / 2;
+  // var center_point_y = work_height / 2;
 
   var opacity = 100;
 
@@ -464,10 +464,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         else if (effect_index === 1) { // scale forward then backward
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
-          // var scale_k = (input_C_value - input_C_activation_value) / (window_stats.max - input_C_activation_value); // [0, 1]
-          // scale_multiplier = 0.5 + 0.5 * scale_k; // [0.5, 1.0]
-          center_point_x = getRandomInRange(0, work_width);
-          center_point_y = getRandomInRange(0, work_height);
+          // center_point_x = getRandomInRange(0, work_width);
+          // center_point_y = getRandomInRange(0, work_height);
         }
         else if (effect_index === 2) { // opacity
           hue += (Math.random() < 0.5 ? +0.25 : +0.75);
@@ -550,7 +548,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       */
       frame_times[index_in_batch] = time;
       frame_output0_values[index_in_batch] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
-      frame_output1_values[index_in_batch] = [opacity, center_point_x, center_point_y, 0];
+      frame_output1_values[index_in_batch] = opacity;
+      // frame_output1_values[index_in_batch] = [opacity, center_point_x, center_point_y, 0];
     }
 
     var setValuesAtTimes_start_time = Date.now();
