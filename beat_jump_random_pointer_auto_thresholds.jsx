@@ -459,7 +459,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         effect_index = (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_index]++;
 
-        if (prev_effect_index !== 1) opacity = 100;
+        if (effect_index !== 1) opacity = 100;
 
         if (effect_index === 0) { // horizontal inversion
           hue += 0.5;
