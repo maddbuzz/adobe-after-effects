@@ -212,7 +212,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "dont_repeat_same_effect", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "dont_repeat_same_effect", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -271,7 +271,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     2. не кэшировать srcControl. В цикле вызывать каждый раз:
       var curr_value = beat_layer.effect("BCC Beat Reactor")("Output Value C").valueAtTime(time, false);
   */
-  const script_output_control = create_new_or_return_existing_control(beat_layer, "script_output", "Color");
+  create_new_or_return_existing_control(beat_layer, "script_output", "Color");
+  create_new_or_return_existing_control(beat_layer, "script_output1", "Slider");
+  const script_output0_control = beat_layer.effect("script_output")("Color");
+  const script_output1_control = beat_layer.effect("script_output1")("Slider");
 
   const input_C_control = beat_layer.effect("BCC Beat Reactor")("Output Value C"); // в выражении для Amount эффекта S_WarpFishEye: -thisComp.layer("beat").effect("BCC Beat Reactor")("Output Value C") * 0.25
   // const input_A_control = beat_layer.effect("BCC Beat Reactor")("Output Value A");
@@ -325,16 +328,22 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var hue = getRandomInRange(0, 1);
   var sgn = +1;
 
-  const effect_triggered_total = [0, 0, 0];
+  const TOTAL_EFFECTS = 4; // 0 - horizontal inversion, 1 - scale forward then backward, 2 - opacity, 3 - jump in time
+  var effect_index = getRandomInt(TOTAL_EFFECTS);
+  const effect_triggered_total = []; for (var i = 0; i < TOTAL_EFFECTS; i++) effect_triggered_total[i] = 0;
   const effect_triggered_values = [];
-  const windows_stats_values = [];
 
-  var effect_index = getRandomInt(3); // [0, 2];
   var FX_triggered_total = 0;
   var is_FX_active = false;
+  const windows_stats_values = [];
+
   var scale_ADSR_activation_time = null;
   var scale_ADSR_deactivation_time = null;
   var scale_ADSR_amplitude = 0; // [0, 1]
+
+  var opacity_ADSR_activation_time = null;
+  var opacity_ADSR_deactivation_time = null;
+  var opacity_ADSR_amplitude = 0; // [0, 1]
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
   var S_WarpFishEye_inflation_start_time = null;
@@ -353,7 +362,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var setValuesAtTimes_called_times = 0;
 
   const frame_times = new Array(frames_batch_size);
-  const frame_values = new Array(frames_batch_size);
+  const frame_output0_values = new Array(frames_batch_size);
+  const frame_output1_values = new Array(frames_batch_size);
 
   function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
     var x = (src_value - src_low) / (src_high - src_low);
@@ -450,8 +460,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         var prev_effect_index = effect_index;
         effect_triggered_total[prev_effect_index]++;
         effect_index = dont_repeat_same_effect
-          ? (prev_effect_index + 1 + getRandomInt(2)) % 3
-          : getRandomInt(3);
+          ? (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS
+          : getRandomInt(TOTAL_EFFECTS);
 
         if (prev_effect_index === 0) { // horizontal inversion
           hue += 0.5;
@@ -461,7 +471,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
         }
-        else if (prev_effect_index === 2) { // jump in time
+        else if (prev_effect_index === 2) { // opacity
+          opacity_ADSR_activation_time = time;
+          opacity_ADSR_deactivation_time = time;
+        }
+        else if (prev_effect_index === 3) { // jump in time
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
 
@@ -494,6 +508,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var scale = 100 + 100 * scale_ADSR_amplitude;
       var signed_scale = sgn * scale;
 
+      opacity_ADSR_amplitude = get_ADSR_amplitude(time, opacity_ADSR_activation_time, opacity_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
+      var opacity = 100 * (1 - opacity_ADSR_amplitude);
+
       if (!warp_inputs) warp_inputs = window_stats;
       if (S_WarpFishEye_inflation_start_time === null && input_C_value <= warp_inputs.min) S_WarpFishEye_inflation_start_time = time;
       if (input_C_value > warp_inputs.min) S_WarpFishEye_inflation_start_time = null;
@@ -517,7 +534,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           thisComp.layer("beat").effect("script_output")("Color")[0]
         S_WarpFishEye Amount:
           thisComp.layer("beat").effect("script_output")("Color")[3];
-        CC Composite (Transfer Mode = Luminosity, Opacity 100%) {after S_WarpFishEye and before S_HueSatBright}
+        CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
+          thisComp.layer("beat").effect("script_output1")("Slider")
         S_HueSatBright Hue Shift:
           thisComp.layer("beat").effect("script_output")("Color")[2]
         Transform Scale:
@@ -528,19 +546,22 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       // frame_times[frame] = time;
       // frame_values[frame] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
       frame_times[index_in_batch] = time;
-      frame_values[index_in_batch] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
+      frame_output0_values[index_in_batch] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
+      frame_output1_values[index_in_batch] = opacity;
     }
 
     var setValuesAtTimes_start_time = Date.now();
-    // Если последняя порция неполная, используем slice
-    if (batch_length < frames_batch_size) {
-      script_output_control.setValuesAtTimes(
-        frame_times.slice(0, batch_length),
-        frame_values.slice(0, batch_length)
-      );
-    } else {
-      script_output_control.setValuesAtTimes(frame_times, frame_values);
-    }
+    // // Если последняя порция неполная, используем slice
+    // if (batch_length < frames_batch_size) {
+    //   script_output_control.setValuesAtTimes(
+    //     frame_times.slice(0, batch_length),
+    //     frame_values.slice(0, batch_length)
+    //   );
+    // } else {
+    //   script_output_control.setValuesAtTimes(frame_times, frame_values);
+    // }
+    script_output0_control.setValuesAtTimes(frame_times, frame_output0_values);
+    script_output1_control.setValuesAtTimes(frame_times, frame_output1_values);
     var setValuesAtTimes_end_time = Date.now();
     setValuesAtTimes_total_time += (setValuesAtTimes_end_time - setValuesAtTimes_start_time) / 1000;
     setValuesAtTimes_called_times++;
