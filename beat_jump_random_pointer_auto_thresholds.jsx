@@ -345,6 +345,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   // var center_point_y = work_height / 2;
 
   var opacity = 100;
+  var time_to_revert_opacity = null;
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
   var S_WarpFishEye_inflation_start_time = null;
@@ -448,14 +449,17 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         }
       }
 
+      if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
+        opacity = 100;
+        time_to_revert_opacity = null;
+      }
+
       if (FX_triggered) {
         var prev_effect_index = effect_index;
-        if (prev_effect_index === 2) { // revert opacity effect
-          opacity = 100;
-        }
-
         effect_index = (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_index]++;
+
+        if (prev_effect_index !== 1) opacity = 100;
 
         if (effect_index === 0) { // horizontal inversion
           hue += 0.5;
@@ -466,6 +470,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           scale_ADSR_deactivation_time = time;
           // center_point_x = getRandomInRange(0, work_width);
           // center_point_y = getRandomInRange(0, work_height);
+          time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_index === 2) { // opacity
           hue += (Math.random() < 0.5 ? +0.25 : +0.75);
@@ -529,7 +534,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         S_WarpFishEye Amount:
           thisComp.layer("beat").effect("script_output")("Color")[3];
         CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
-          thisComp.layer("beat").effect("script_output1")("Color")[0];
+          thisComp.layer("beat").effect("script_output1")("Slider");
         S_HueSatBright Hue Shift:
           thisComp.layer("beat").effect("script_output")("Color")[2];
         Transform Scale:
