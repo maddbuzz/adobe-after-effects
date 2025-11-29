@@ -217,8 +217,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // seconds
-  create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 16.0); // 1 + (7 / 1.25) * 2 === 12.2
-  create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 4.0);
+  create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 200);
+  create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
+  create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
@@ -242,6 +243,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
   const scale_ADSR_release = beat_layer.effect("scale_ADSR_release")("Slider").value;
+  const scale_MAX_amplitude = beat_layer.effect("scale_MAX_amplitude")("Slider").value;
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
   const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
   const speed_min = beat_layer.effect("speed_min")("Slider").value;
@@ -339,11 +341,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   var scale_ADSR_activation_time = null;
   var scale_ADSR_deactivation_time = null;
-  var scale_ADSR_amplitude = 0; // [0, 1]
+  var scale_multiplier = 1;
 
-  var opacity_ADSR_activation_time = null;
-  var opacity_ADSR_deactivation_time = null;
-  var opacity_ADSR_amplitude = 0; // [0, 1]
+  var opacity = 100;
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
   var S_WarpFishEye_inflation_start_time = null;
@@ -458,24 +458,30 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
       if (FX_triggered) {
         var prev_effect_index = effect_index;
-        effect_triggered_total[prev_effect_index]++;
+        if (prev_effect_index === 2) { // revert opacity effect
+          opacity = 100;
+        }
+
         effect_index = dont_repeat_same_effect
           ? (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS
           : getRandomInt(TOTAL_EFFECTS);
+        effect_triggered_total[effect_index]++;
 
-        if (prev_effect_index === 0) { // horizontal inversion
+        if (effect_index === 0) { // horizontal inversion
           hue += 0.5;
           sgn *= -1;
         }
-        else if (prev_effect_index === 1) { // scale forward then backward
+        else if (effect_index === 1) { // scale forward then backward
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
+          var scale_k = (input_C_value - input_C_activation_value) / (window_stats.max - input_C_activation_value); // [0, 1]
+          scale_multiplier = 0.5 + 0.5 * scale_k; // [0.5, 1.0]
         }
-        else if (prev_effect_index === 2) { // opacity
-          opacity_ADSR_activation_time = time;
-          opacity_ADSR_deactivation_time = time;
+        else if (effect_index === 2) { // opacity
+          hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          opacity = 50;
         }
-        else if (prev_effect_index === 3) { // jump in time
+        else if (effect_index === 3) { // jump in time
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
 
@@ -504,12 +510,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         }
       }
 
-      scale_ADSR_amplitude = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
-      var scale = 100 + 100 * scale_ADSR_amplitude;
+      var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
+      var scale_ADSR_amplitude = (scale_MAX_amplitude * scale_multiplier) * scale_ADSR_normalized;
+      var scale = 100 + scale_ADSR_amplitude;
       var signed_scale = sgn * scale;
-
-      opacity_ADSR_amplitude = get_ADSR_amplitude(time, opacity_ADSR_activation_time, opacity_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
-      var opacity = 100 * (1 - opacity_ADSR_amplitude);
 
       if (!warp_inputs) warp_inputs = window_stats;
       if (S_WarpFishEye_inflation_start_time === null && input_C_value <= warp_inputs.min) S_WarpFishEye_inflation_start_time = time;
@@ -609,6 +613,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
     "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
     "scale_ADSR_release = " + scale_ADSR_release + "\n" +
+    "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
     "speed_max = " + speed_max + "\n" +
     "speed_avg = " + speed_avg + "\n" +
     "speed_min = " + speed_min + "\n" +
