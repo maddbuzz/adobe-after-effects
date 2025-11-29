@@ -206,18 +206,19 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const work_start_time = beatComp.workAreaStart;
   const work_end_time = work_start_time + beatComp.workAreaDuration;
   const work_total_frames = Math.floor((work_end_time - work_start_time) / frame_duration) + 1;
+  const work_width = beatComp.width;
+  const work_height = beatComp.height;
 
   create_new_or_return_existing_control(beat_layer, "frames_batch_size", "Slider", 5000);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "dont_repeat_same_effect", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // seconds
-  create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 200);
+  create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
@@ -238,7 +239,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const inputs_ABC_min_value = beat_layer.effect("inputs_ABC_min_value")("Slider").value;
   const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
-  const dont_repeat_same_effect = beat_layer.effect("dont_repeat_same_effect")("Checkbox").value;
   const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
@@ -274,9 +274,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var curr_value = beat_layer.effect("BCC Beat Reactor")("Output Value C").valueAtTime(time, false);
   */
   create_new_or_return_existing_control(beat_layer, "script_output", "Color");
-  create_new_or_return_existing_control(beat_layer, "script_output1", "Slider");
+  create_new_or_return_existing_control(beat_layer, "script_output1", "Color");
   const script_output0_control = beat_layer.effect("script_output")("Color");
-  const script_output1_control = beat_layer.effect("script_output1")("Slider");
+  const script_output1_control = beat_layer.effect("script_output1")("Color");
 
   const input_C_control = beat_layer.effect("BCC Beat Reactor")("Output Value C"); // в выражении для Amount эффекта S_WarpFishEye: -thisComp.layer("beat").effect("BCC Beat Reactor")("Output Value C") * 0.25
   // const input_A_control = beat_layer.effect("BCC Beat Reactor")("Output Value A");
@@ -341,7 +341,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   var scale_ADSR_activation_time = null;
   var scale_ADSR_deactivation_time = null;
-  var scale_multiplier = 1;
+  var center_point_x = work_width / 2;
+  var center_point_y = work_height / 2;
 
   var opacity = 100;
 
@@ -403,15 +404,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
       }
 
-      // var k = (input_C_value - input_C_deactivation_value) / (input_C_activation_value - input_C_deactivation_value); // может получится меньше 0 или больше 1
-      // var k = (input_C_value - window_stats.min) / (window_stats.max - window_stats.min);
-      // var k = (input_C_value - window_stats.avg) / (window_stats.max - window_stats.avg);
-      // if (!isFinite(k)) {
-      //   windows_stats_max_equal_min++;
-      //   k = 0;
-      // }
-      // k = clamp(k, 0, 1); // ограничиваем от 0 до 1
-      // var speed = lerp(speed_min, speed_max, k);
       if (!speed_inputs) speed_inputs = window_stats;
       var speed_output = get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
       if (input_C_value <= speed_inputs.min) speed_inputs = undefined;
@@ -462,9 +454,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           opacity = 100;
         }
 
-        effect_index = dont_repeat_same_effect
-          ? (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS
-          : getRandomInt(TOTAL_EFFECTS);
+        effect_index = (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_index]++;
 
         if (effect_index === 0) { // horizontal inversion
@@ -474,8 +464,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         else if (effect_index === 1) { // scale forward then backward
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
-          var scale_k = (input_C_value - input_C_activation_value) / (window_stats.max - input_C_activation_value); // [0, 1]
-          scale_multiplier = 0.5 + 0.5 * scale_k; // [0.5, 1.0]
+          // var scale_k = (input_C_value - input_C_activation_value) / (window_stats.max - input_C_activation_value); // [0, 1]
+          // scale_multiplier = 0.5 + 0.5 * scale_k; // [0.5, 1.0]
+          center_point_x = getRandomInRange(0, work_width);
+          center_point_y = getRandomInRange(0, work_height);
         }
         else if (effect_index === 2) { // opacity
           hue += (Math.random() < 0.5 ? +0.25 : +0.75);
@@ -511,7 +503,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       }
 
       var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
-      var scale_ADSR_amplitude = (scale_MAX_amplitude * scale_multiplier) * scale_ADSR_normalized;
+      var scale_ADSR_amplitude = scale_MAX_amplitude * scale_ADSR_normalized;
       var scale = 100 + scale_ADSR_amplitude;
       var signed_scale = sgn * scale;
 
@@ -535,35 +527,34 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       /*
       В After Effects выражениях:
         Time Remap:
-          thisComp.layer("beat").effect("script_output")("Color")[0]
+          thisComp.layer("beat").effect("script_output")("Color")[0];
         S_WarpFishEye Amount:
           thisComp.layer("beat").effect("script_output")("Color")[3];
         CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
-          thisComp.layer("beat").effect("script_output1")("Slider")
+          thisComp.layer("beat").effect("script_output1")("Color")[0];
         S_HueSatBright Hue Shift:
-          thisComp.layer("beat").effect("script_output")("Color")[2]
+          thisComp.layer("beat").effect("script_output")("Color")[2];
         Transform Scale:
           signed_scale = thisComp.layer("beat").effect("script_output")("Color")[1]; // [100;200] | [-100;-200]
           [signed_scale, Math.abs(signed_scale)];
-
+        Transform Anchor Point:
+          center_x = thisComp.layer("beat").effect("script_output1")("Color")[1];
+          center_y = thisComp.layer("beat").effect("script_output1")("Color")[2];
+          signed_x_scale = thisComp.layer("beat").effect("script_output")("Color")[1];
+          if (signed_x_scale < 0) center_x = thisComp.width - center_x; // это надо сделать либо для Anchor Point, либо для Position
+          [center_x, center_y];
+        Transform Position:
+          center_x = thisComp.layer("beat").effect("script_output1")("Color")[1];
+          center_y = thisComp.layer("beat").effect("script_output1")("Color")[2];
+          [center_x, center_y];
       */
-      // frame_times[frame] = time;
-      // frame_values[frame] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
       frame_times[index_in_batch] = time;
       frame_output0_values[index_in_batch] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
-      frame_output1_values[index_in_batch] = opacity;
+      frame_output1_values[index_in_batch] = [opacity, center_point_x, center_point_y, 0];
     }
 
     var setValuesAtTimes_start_time = Date.now();
-    // // Если последняя порция неполная, используем slice
-    // if (batch_length < frames_batch_size) {
-    //   script_output_control.setValuesAtTimes(
-    //     frame_times.slice(0, batch_length),
-    //     frame_values.slice(0, batch_length)
-    //   );
-    // } else {
-    //   script_output_control.setValuesAtTimes(frame_times, frame_values);
-    // }
+    // Если последняя порция неполная, не используем slice, т.к. в конце просто останутся старые значения из предыдущих итераций
     script_output0_control.setValuesAtTimes(frame_times, frame_output0_values);
     script_output1_control.setValuesAtTimes(frame_times, frame_output1_values);
     var setValuesAtTimes_end_time = Date.now();
@@ -608,7 +599,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
     "activate_avg_max = " + activate_avg_max + "\n" +
-    "dont_repeat_same_effect = " + dont_repeat_same_effect + "\n" +
     "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
     "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
     "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
