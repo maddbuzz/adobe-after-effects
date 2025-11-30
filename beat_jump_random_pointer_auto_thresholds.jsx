@@ -401,7 +401,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         if (window_stats.current_value > window_stats.max) throw new Error("window_stats.current_value > window_stats.max");
         // windows_stats_values.push(window_stats);
       } catch (e) {
-        alert("Error in window_stats at time " + time + ": " + e.message);
+        alert(
+          "Error in window_stats at time " + time + ": " + e.message + "\n" +
+          "window_stats.min = " + window_stats.min + "\n" +
+          "window_stats.avg = " + window_stats.avg + "\n" +
+          "window_stats.max = " + window_stats.max + "\n" +
+          "\n"
+        );
         time_processing_stopped_at = time;
         break;
       }
