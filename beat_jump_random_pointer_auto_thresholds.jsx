@@ -320,7 +320,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   }
 
   var pointers = get_pointers();
-  var pointer_index = getRandomInt(pointers.length);
+  var pointer_index = 0; // getRandomInt(pointers.length);
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
@@ -485,10 +485,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             pointers.splice(pointer_index, 1);
             spliced = true;
           }
+          
           if (pointers.length <= POINTERS_LEFT_TO_STOP) {
             time_processing_stopped_at = time;
             break;
           }
+          if (pointers.length === 0) pointers = get_pointers();
 
           if (time_remap_fixed_pointers_order) {
             pointer_index = spliced
