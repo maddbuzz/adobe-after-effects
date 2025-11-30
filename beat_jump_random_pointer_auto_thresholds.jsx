@@ -391,14 +391,20 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time = work_start_time + frame * frame_duration;
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
-      // С этими проверками 129 секунд - без них 131 секунд - вообще никакого замедления не вызывают:
-      if (window_stats.max < window_stats.min) throw new Error("window_stats.max < window_stats.min");
-      if (window_stats.min > window_stats.max) throw new Error("window_stats.min > window_stats.max");
-      if (window_stats.avg < window_stats.min) throw new Error("window_stats.avg < window_stats.min");
-      if (window_stats.avg > window_stats.max) throw new Error("window_stats.avg > window_stats.max");
-      if (window_stats.current_value < window_stats.min) throw new Error("window_stats.current_value < window_stats.min");
-      if (window_stats.current_value > window_stats.max) throw new Error("window_stats.current_value > window_stats.max");
-      // windows_stats_values.push(window_stats);
+      try {
+        // С этими проверками 129 секунд - без них 131 секунд - вообще никакого замедления не вызывают:
+        if (window_stats.max < window_stats.min) throw new Error("window_stats.max < window_stats.min");
+        if (window_stats.min > window_stats.max) throw new Error("window_stats.min > window_stats.max");
+        if (window_stats.avg < window_stats.min) throw new Error("window_stats.avg < window_stats.min");
+        if (window_stats.avg > window_stats.max) throw new Error("window_stats.avg > window_stats.max");
+        if (window_stats.current_value < window_stats.min) throw new Error("window_stats.current_value < window_stats.min");
+        if (window_stats.current_value > window_stats.max) throw new Error("window_stats.current_value > window_stats.max");
+        // windows_stats_values.push(window_stats);
+      } catch (e) {
+        alert("Error in window_stats at time " + time + ": " + e.message);
+        time_processing_stopped_at = time;
+        break;
+      }
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
 
       if (!is_FX_active) {
@@ -485,7 +491,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             pointers.splice(pointer_index, 1);
             spliced = true;
           }
-          
+
           if (pointers.length <= POINTERS_LEFT_TO_STOP) {
             time_processing_stopped_at = time;
             break;
