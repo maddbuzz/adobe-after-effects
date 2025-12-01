@@ -5,8 +5,9 @@ function compute_forward_window_stats_init(control_property, work_start_time, wo
   var min_queue = [];
   var max_queue = [];
 
-  // формируем первое окно
-  for (var frame = 0; frame < Math.min(window_frame_count, work_total_frames); frame++) {
+  const window_last_frame = window_frame_count - 1;
+  // формируем первое окно БЕЗ ПОСЛЕДНЕГО КАДРА
+  for (var frame = 0; frame < window_last_frame; frame++) {
     var v = control_property.valueAtTime(work_start_time + frame * frame_duration, false);
     sum += v;
     sum_count++;
@@ -19,6 +20,7 @@ function compute_forward_window_stats_init(control_property, work_start_time, wo
   }
 
   return {
+    current_value: undefined,
     sum: sum,
     sum_count: sum_count,
     min_queue: min_queue,
@@ -44,13 +46,15 @@ function compute_forward_window_stats_step(state, control_property, work_frame_i
   var window_last_frame = work_frame_index + window_frame_count - 1;
   const is_full_window = window_last_frame < work_total_frames;
 
-  var prev_value = state.current_value !== undefined ? state.current_value : 0;
+  var prev_value = state.current_value;
   state.current_value = control_property.valueAtTime(work_start_time + window_first_frame * frame_duration, false);
 
   if (is_full_window) {
-    // убираеми левый кадр из окна
-    sum -= prev_value;
-    sum_count--;
+    if (prev_value !== undefined) {
+      // убираеми левый кадр из окна
+      sum -= prev_value;
+      sum_count--;
+    }
 
     // добавляем правый кадр в окно
     var new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
@@ -71,6 +75,8 @@ function compute_forward_window_stats_step(state, control_property, work_frame_i
     state.sum_count = sum_count;
     state.min_queue = min_queue;
     state.max_queue = max_queue;
+
+    if (sum_count !== window_frame_count) throw new Error("sum_count !== window_frame_count" + sum_count + " vs " + window_frame_count);
 
     state.last_full_window_stats = {
       avg: sum / sum_count,
@@ -368,6 +374,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const frame_output1_values = new Array(frames_batch_size);
 
   function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
+    if (src_high === src_low) throw new Error("src_high === src_low" + src_high + " vs " + src_low);
+    if (spd_high === spd_low) throw new Error("spd_high === spd_low" + spd_high + " vs " + spd_low);
     var x = (src_value - src_low) / (src_high - src_low);
     x = clamp(x, 0, 1);
     // находим степень, при которой для src_mid будет получаться spd_mid
@@ -392,20 +400,25 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
       var window_stats = compute_forward_window_stats_step(state, input_C_control, frame);
       try {
-        // С этими проверками 129 секунд - без них 131 секунд - вообще никакого замедления не вызывают:
-        if (window_stats.max < window_stats.min) throw new Error("window_stats.max < window_stats.min");
-        if (window_stats.min > window_stats.max) throw new Error("window_stats.min > window_stats.max");
-        if (window_stats.avg < window_stats.min) throw new Error("window_stats.avg < window_stats.min");
-        if (window_stats.avg > window_stats.max) throw new Error("window_stats.avg > window_stats.max");
+        // windows_stats_values.push(window_stats);
         if (window_stats.current_value < window_stats.min) throw new Error("window_stats.current_value < window_stats.min");
         if (window_stats.current_value > window_stats.max) throw new Error("window_stats.current_value > window_stats.max");
-        // windows_stats_values.push(window_stats);
+        if (window_stats.max === window_stats.min) {
+          windows_stats_max_equal_min++;
+        } else {
+          if (window_stats.max < window_stats.min) throw new Error("window_stats.max < window_stats.min");
+          if (window_stats.min > window_stats.max) throw new Error("window_stats.min > window_stats.max");
+          // avg-проверки срабатывают, если целое окно "тишины" - из-за округления?
+          if (window_stats.avg < window_stats.min) throw new Error("window_stats.avg < window_stats.min");
+          if (window_stats.avg > window_stats.max) throw new Error("window_stats.avg > window_stats.max");
+        }
       } catch (e) {
         alert(
           "Error in window_stats at time " + time + ": " + e.message + "\n" +
           "window_stats.min = " + window_stats.min + "\n" +
           "window_stats.avg = " + window_stats.avg + "\n" +
           "window_stats.max = " + window_stats.max + "\n" +
+          "window_stats.current_value = " + window_stats.current_value + "\n" +
           "\n"
         );
         time_processing_stopped_at = time;
@@ -418,7 +431,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       }
 
       if (!speed_inputs) speed_inputs = window_stats;
-      var speed_output = get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
+      var speed_output = (speed_inputs.min === speed_inputs.max)
+        ? speed_min
+        : get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
       if (input_C_value <= speed_inputs.min) speed_inputs = undefined;
 
       var starting_position = pointers[pointer_index].starting_position;
@@ -449,10 +464,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         is_FX_active = false;
       }
       if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
-        // input_C_deactivation_value = window_stats.avg;
         input_C_deactivation_value = lerp(window_stats.min, window_stats.avg, deactivate_min_avg);
 
-        if (input_C_deactivation_value === input_C_activation_value) {
+        if (input_C_deactivation_value >= input_C_activation_value) {
           input_C_deactivation_value_equal_activation_value++; // skip activation if so
         } else {
           is_FX_active = true;
@@ -595,9 +609,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   const pointers_number_after = pointers.length;
 
-  // var file = new File("~/Desktop/effect_triggered_values.json");
+  // var file = new File("~/Desktop/windows_stats_values.json");
   // file.open("w");
-  // file.write(JSON.stringify(effect_triggered_values, null, 2)); // null,2 — форматирование с отступами
+  // file.write(JSON.stringify(windows_stats_values, null, 2)); // null,2 — форматирование с отступами
   // file.close();
   // file.execute();
 
