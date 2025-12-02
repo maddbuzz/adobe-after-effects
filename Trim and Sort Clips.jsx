@@ -61,12 +61,14 @@
   create_control_if_not_exists(control_layer, "just_order_dont_trim", "Checkbox", true);
   create_control_if_not_exists(control_layer, "sort_by_name", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_order", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "rescale_to_fit", "Checkbox", true);
   create_control_if_not_exists(control_layer, "trim_start", "Slider", 1);
   create_control_if_not_exists(control_layer, "trim_end", "Slider", 4);
 
-  var reverse_order = get_control(control_layer, "reverse_order", "Checkbox").value;
   var just_order_dont_trim = get_control(control_layer, "just_order_dont_trim", "Checkbox").value;
   var sort_by_name = get_control(control_layer, "sort_by_name", "Checkbox").value;
+  var reverse_order = get_control(control_layer, "reverse_order", "Checkbox").value;
+  var rescale_to_fit = get_control(control_layer, "rescale_to_fit", "Checkbox").value;
   var trim_start = get_control(control_layer, "trim_start", "Slider").value;
   var trim_end = get_control(control_layer, "trim_end", "Slider").value;
 
@@ -104,7 +106,7 @@
     var current_layer = target_layers[i];
 
     // Масштабирование: вписать целиком в композицию, сохранив пропорции
-    try {
+    if (rescale_to_fit) {
       var src_width = current_layer.source.width;
       var src_height = current_layer.source.height;
       var comp_width = composition.width;
@@ -113,7 +115,7 @@
       var scale_y = (comp_height / src_height) * 100;
       var uniform_scale = Math.min(scale_x, scale_y);
       current_layer.property("Scale").setValue([uniform_scale, uniform_scale]);
-    } catch (_) { }
+    };
 
     if (!just_order_dont_trim) {
       // var source_duration = current_layer.source.duration; // не учитывает Time Stretch
