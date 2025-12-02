@@ -103,8 +103,8 @@ function get_video_clips_start_end_times_in_composition(parent_composition, chil
   var child_composition = child_composition_layer.source;
   var result = [];
 
-  // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
-  for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
+  for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
+  // for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
     var layer = child_composition.layer(layer_index);
 
     if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
