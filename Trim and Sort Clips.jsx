@@ -3,8 +3,9 @@
   const script_filename = File(script_fullpath).name;
 
   var message =
-    "Этот скрипт\n\n" +
+    "Это скрипт\n\n" +
     script_filename + "\n\n" +
+    "(trim_start и trim_end применяются после Time Stretch)\n\n" +
     "Хотите продолжить?";
   var proceed = confirm(message);
   if (!proceed) return;
@@ -115,7 +116,10 @@
     } catch (_) { }
 
     if (!just_order_dont_trim) {
-      var source_duration = current_layer.source.duration;
+      // var source_duration = current_layer.source.duration; // не учитывает Time Stretch
+      // var source_duration = current_layer.outPoint - current_layer.inPoint; // учитывает Time Stretch, но отрезать будет снова и снова при повторных запусках
+      var source_duration = current_layer.source.duration * current_layer.stretch / 100; // учитывает Time Stretch, но ?
+
       var source_in_time = trim_start;
       var source_out_time = source_duration - trim_end;
       if (source_out_time < source_in_time) source_out_time = source_in_time;
