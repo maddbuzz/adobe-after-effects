@@ -37,8 +37,8 @@
       composition.pixelAspect,
       composition.duration
     );
-    control_layer.guideLayer = false;
   }
+  control_layer.guideLayer = false;
   control_layer.enabled = true; // включаем видимость (глазик)
 
   function create_control_if_not_exists(layer, control_name, type, default_value) {
