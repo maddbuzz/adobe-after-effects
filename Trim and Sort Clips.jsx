@@ -37,7 +37,7 @@
       composition.pixelAspect,
       composition.duration
     );
-    control_layer.guideLayer = true;
+    control_layer.guideLayer = false;
   }
   control_layer.enabled = false; // отключаем видимость (глазик)
 
@@ -143,8 +143,8 @@
       current_time += layer_length;
     }
 
-    // current_layer.moveToBeginning();
-    current_layer.moveToEnd();
+    current_layer.moveToBeginning(); // если хотим чтобы наш непрозрачный солид оказался снизу (А МЫ ХОТИМ!)
+    // current_layer.moveToEnd();
   }
 
   composition.duration = current_time;
