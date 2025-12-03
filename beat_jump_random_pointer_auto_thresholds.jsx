@@ -228,7 +228,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
-  create_new_or_return_existing_control(beat_layer, "get_linear_min_max_speed", "Checkbox", true); // ???????????????????????????????????????????
+  create_new_or_return_existing_control(beat_layer, "get_linear_min_max_speed", "Checkbox", false); // НЕТ - ЛИНЕЙНАЯ СКОРОСТЬ ОТСТОЙ !
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
