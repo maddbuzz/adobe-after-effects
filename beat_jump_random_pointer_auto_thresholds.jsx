@@ -104,7 +104,7 @@ function get_video_clips_start_end_times_in_composition(parent_composition, chil
   var result = [];
 
   for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
-  // for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
+    // for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
     var layer = child_composition.layer(layer_index);
 
     if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
@@ -228,6 +228,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
+  create_new_or_return_existing_control(beat_layer, "get_linear_min_max_speed", "Checkbox", true); // ???????????????????????????????????????????
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
@@ -253,6 +254,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
   const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
   const speed_min = beat_layer.effect("speed_min")("Slider").value;
+  const get_linear_min_max_speed = beat_layer.effect("get_linear_min_max_speed")("Checkbox").value;
   const S_WarpFishEye_Amount_neg_max = beat_layer.effect("S_WarpFishEye_Amount_neg_max")("Slider").value;
   const S_WarpFishEye_Amount_pos_max = beat_layer.effect("S_WarpFishEye_Amount_pos_max")("Slider").value;
   const S_WarpFishEye_inflation_inc = beat_layer.effect("S_WarpFishEye_inflation_inc")("Slider").value;
@@ -373,16 +375,19 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const frame_output0_values = new Array(frames_batch_size);
   const frame_output1_values = new Array(frames_batch_size);
 
-  function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
+  function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high, get_linear_speed) {
     if (src_high === src_low) throw new Error("src_high === src_low" + src_high + " vs " + src_low);
     if (spd_high === spd_low) throw new Error("spd_high === spd_low" + spd_high + " vs " + spd_low);
     var x = (src_value - src_low) / (src_high - src_low);
-    x = clamp(x, 0, 1);
+    // x = clamp(x, 0, 1);
+    if (x < 0 || x > 1) throw new Error("x < 0 || x > 1" + ", x === " + x);
     // находим степень, при которой для src_mid будет получаться spd_mid
-    var exponent = getBaseLog(
-      (src_mid - src_low) / (src_high - src_low),
-      (spd_mid - spd_low) / (spd_high - spd_low)
-    );
+    var exponent = get_linear_speed
+      ? 1.0
+      : getBaseLog(
+        (src_mid - src_low) / (src_high - src_low),
+        (spd_mid - spd_low) / (spd_high - spd_low)
+      );
     var spd_value = spd_low + (spd_high - spd_low) * Math.pow(x, exponent);
     return spd_value;
   }
@@ -433,7 +438,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       if (!speed_inputs) speed_inputs = window_stats;
       var speed_output = (speed_inputs.min === speed_inputs.max)
         ? speed_min
-        : get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
+        : get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max, get_linear_min_max_speed);
       if (input_C_value <= speed_inputs.min) speed_inputs = undefined;
 
       var starting_position = pointers[pointer_index].starting_position;
@@ -639,6 +644,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "speed_max = " + speed_max + "\n" +
     "speed_avg = " + speed_avg + "\n" +
     "speed_min = " + speed_min + "\n" +
+    "get_linear_min_max_speed = " + get_linear_min_max_speed + "\n" +
     "S_WarpFishEye_Amount_neg_max = " + S_WarpFishEye_Amount_neg_max + "\n" +
     "S_WarpFishEye_Amount_pos_max = " + S_WarpFishEye_Amount_pos_max + "\n" +
     "S_WarpFishEye_inflation_inc = " + S_WarpFishEye_inflation_inc + "\n" +
