@@ -39,7 +39,7 @@
     );
     control_layer.guideLayer = false;
   }
-  control_layer.enabled = false; // отключаем видимость (глазик)
+  control_layer.enabled = true; // включаем видимость (глазик)
 
   function create_control_if_not_exists(layer, control_name, type, default_value) {
     var effects = layer.property("Effects");
