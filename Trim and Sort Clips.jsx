@@ -150,6 +150,8 @@
   composition.duration = current_time;
   composition.workAreaStart = 0;
   composition.workAreaDuration = current_time - 1 / composition.frameRate;
+  control_layer.inPoint = 0;
+  control_layer.outPoint = current_time;
 
   app.endUndoGroup();
 })();

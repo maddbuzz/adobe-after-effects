@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>График функции get_spd_from_src</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .controls-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .control-group {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        .control-group h3 {
+            margin-top: 0;
+            color: #555;
+            font-size: 16px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 8px;
+        }
+        .input-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 10px;
+            margin: 10px 0;
+            align-items: center;
+        }
+        .input-row label {
+            font-weight: 500;
+            color: #666;
+        }
+        .input-row input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .input-row input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        .control-point {
+            background-color: #ffebee !important;
+            font-weight: bold;
+        }
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>График функции get_spd_from_src</h1>
+        
+        <div class="controls-container">
+            <div class="control-group">
+                <h3>Параметры функции (src)</h3>
+                <div class="input-row">
+                    <label for="src_low">src_low:</label>
+                    <input type="number" id="src_low" value="0" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label for="src_mid">src_mid:</label>
+                    <input type="number" id="src_mid" value="1" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label for="src_high">src_high:</label>
+                    <input type="number" id="src_high" value="2" step="0.1">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Параметры функции (spd)</h3>
+                <div class="input-row">
+                    <label for="spd_low">spd_low:</label>
+                    <input type="number" id="spd_low" value="1" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label for="spd_mid">spd_mid:</label>
+                    <input type="number" id="spd_mid" value="3" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label for="spd_high">spd_high:</label>
+                    <input type="number" id="spd_high" value="9" step="0.1">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Диапазон src_value</h3>
+                <div class="input-row">
+                    <label for="range_min">Минимум:</label>
+                    <input type="number" id="range_min" value="-1" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label for="range_max">Максимум:</label>
+                    <input type="number" id="range_max" value="3" step="0.1">
+                </div>
+                <div class="input-row">
+                    <label for="range_step">Шаг:</label>
+                    <input type="number" id="range_step" value="0.5" step="0.01" min="0.01">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Информация</h3>
+                <div style="padding: 10px; font-size: 14px; line-height: 1.6;">
+                    Функция выполняет нелинейную интерполяцию между тремя контрольными точками.<br><br>
+                    <strong>Контрольные точки:</strong><br>
+                    (src_low, spd_low)<br>
+                    (src_mid, spd_mid)<br>
+                    (src_high, spd_high)
+                </div>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button onclick="updateChart()">Обновить график</button>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <div id="currentInfo" class="info"></div>
+
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+
+        <table id="valuesTable">
+            <thead>
+                <tr>
+                    <th>src_value</th>
+                    <th>spd_value</th>
+                    <th>Примечание</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let myChart = null;
+
+        function getBaseLog(x, y) {
+            if (x <= 0 || x === 1) {
+                throw new Error("Invalid base for logarithm: " + x);
+            }
+            if (y <= 0) {
+                throw new Error("Invalid argument for logarithm: " + y);
+            }
+            return Math.log(y) / Math.log(x);
+        }
+
+        function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
+            if (src_high === src_low) {
+                throw new Error("src_high === src_low: " + src_high + " vs " + src_low);
+            }
+            if (spd_high === spd_low) {
+                throw new Error("spd_high === spd_low: " + spd_high + " vs " + spd_low);
+            }
+
+            var x = (src_value - src_low) / (src_high - src_low);
+
+            // Находим степень, при которой для src_mid будет получаться spd_mid
+            var exponent = getBaseLog(
+                (src_mid - src_low) / (src_high - src_low),
+                (spd_mid - spd_low) / (spd_high - spd_low)
+            );
+
+            var spd_value = spd_low + (spd_high - spd_low) * Math.pow(x, exponent);
+            return spd_value;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+        }
+
+        function updateChart() {
+            hideError();
+
+            try {
+                // Считываем параметры из полей ввода
+                const src_low = parseFloat(document.getElementById('src_low').value);
+                const src_mid = parseFloat(document.getElementById('src_mid').value);
+                const src_high = parseFloat(document.getElementById('src_high').value);
+                const spd_low = parseFloat(document.getElementById('spd_low').value);
+                const spd_mid = parseFloat(document.getElementById('spd_mid').value);
+                const spd_high = parseFloat(document.getElementById('spd_high').value);
+                const range_min = parseFloat(document.getElementById('range_min').value);
+                const range_max = parseFloat(document.getElementById('range_max').value);
+                const range_step = parseFloat(document.getElementById('range_step').value);
+
+                // Валидация
+                if (isNaN(src_low) || isNaN(src_mid) || isNaN(src_high) || 
+                    isNaN(spd_low) || isNaN(spd_mid) || isNaN(spd_high) ||
+                    isNaN(range_min) || isNaN(range_max) || isNaN(range_step)) {
+                    throw new Error("Все поля должны содержать числовые значения");
+                }
+
+                if (range_step <= 0) {
+                    throw new Error("Шаг должен быть больше нуля");
+                }
+
+                if (range_max <= range_min) {
+                    throw new Error("Максимум должен быть больше минимума");
+                }
+
+                if ((range_max - range_min) / range_step > 1000) {
+                    throw new Error("Слишком много точек (больше 1000). Увеличьте шаг или уменьшите диапазон");
+                }
+
+                // Генерируем значения
+                const src_values = [];
+                const spd_values = [];
+                
+                for (let src_val = range_min; src_val <= range_max + range_step/2; src_val += range_step) {
+                    src_values.push(parseFloat(src_val.toFixed(10))); // Избегаем проблем с точностью
+                    const spd_val = get_spd_from_src(src_val, src_low, src_mid, src_high, spd_low, spd_mid, spd_high);
+                    spd_values.push(spd_val);
+                }
+
+                // Обновляем информацию
+                const infoDiv = document.getElementById('currentInfo');
+                const exponent = getBaseLog(
+                    (src_mid - src_low) / (src_high - src_low),
+                    (spd_mid - spd_low) / (spd_high - spd_low)
+                );
+                
+                infoDiv.innerHTML = `<strong>Текущие параметры:</strong><br>
+                    get_spd_from_src(src_value, ${src_low}, ${src_mid}, ${src_high}, ${spd_low}, ${spd_mid}, ${spd_high})<br>
+                    <br>
+                    src_value: от ${range_min} до ${range_max}, шаг ${range_step}<br>
+                    Количество точек: ${src_values.length}<br>
+                    Вычисленный показатель степени (exponent): ${exponent.toFixed(6)}`;
+
+                // Обновляем таблицу
+                const tableBody = document.getElementById('tableBody');
+                tableBody.innerHTML = '';
+
+                for (let i = 0; i < src_values.length; i++) {
+                    const src_val = src_values[i];
+                    const spd_val = spd_values[i];
+                    const row = tableBody.insertRow();
+                    let note = '';
+                    let className = '';
+                    
+                    const tolerance = range_step / 10; // Небольшой допуск для сравнения с плавающей точкой
+                    
+                    if (Math.abs(src_val - src_low) < tolerance) {
+                        note = 'src_low → spd_low';
+                        className = 'control-point';
+                    } else if (Math.abs(src_val - src_mid) < tolerance) {
+                        note = 'src_mid → spd_mid';
+                        className = 'control-point';
+                    } else if (Math.abs(src_val - src_high) < tolerance) {
+                        note = 'src_high → spd_high';
+                        className = 'control-point';
+                    }
+
+                    row.className = className;
+                    row.insertCell(0).textContent = src_val.toFixed(Math.max(1, -Math.floor(Math.log10(range_step)) + 1));
+                    row.insertCell(1).textContent = spd_val.toFixed(4);
+                    row.insertCell(2).textContent = note;
+                }
+
+                // Обновляем или создаём график
+                const ctx = document.getElementById('myChart').getContext('2d');
+                
+                const chartData = {
+                    labels: src_values,
+                    datasets: [{
+                        label: 'get_spd_from_src',
+                        data: spd_values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 3,
+                        pointRadius: Math.min(6, 200 / src_values.length),
+                        pointBackgroundColor: 'rgb(75, 192, 192)',
+                        tension: 0
+                    }, {
+                        label: 'Контрольные точки',
+                        data: src_values.map((val) => {
+                            const tolerance = range_step / 10;
+                            if (Math.abs(val - src_low) < tolerance) return spd_low;
+                            if (Math.abs(val - src_mid) < tolerance) return spd_mid;
+                            if (Math.abs(val - src_high) < tolerance) return spd_high;
+                            return null;
+                        }),
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgb(255, 99, 132)',
+                        borderWidth: 0,
+                        pointRadius: 12,
+                        pointStyle: 'circle',
+                        showLine: false
+                    }]
+                };
+
+                if (myChart) {
+                    myChart.data = chartData;
+                    myChart.options.plugins.title.text = `График функции get_spd_from_src(src_value, ${src_low}, ${src_mid}, ${src_high}, ${spd_low}, ${spd_mid}, ${spd_high})`;
+                    myChart.update();
+                } else {
+                    myChart = new Chart(ctx, {
+                        type: 'line',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: `График функции get_spd_from_src(src_value, ${src_low}, ${src_mid}, ${src_high}, ${spd_low}, ${spd_mid}, ${spd_high})`,
+                                    font: {
+                                        size: 16
+                                    }
+                                },
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            label += context.parsed.y.toFixed(4);
+                                            return label;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'src_value',
+                                        font: {
+                                            size: 14
+                                        }
+                                    },
+                                    grid: {
+                                        display: true
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'spd_value',
+                                        font: {
+                                            size: 14
+                                        }
+                                    },
+                                    grid: {
+                                        display: true
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+            } catch (error) {
+                showError("Ошибка: " + error.message);
+                console.error(error);
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        window.addEventListener('load', function() {
+            updateChart();
+        });
+
+        // Обновление по нажатию Enter в полях ввода
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        updateChart();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
