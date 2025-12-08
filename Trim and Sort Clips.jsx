@@ -37,6 +37,16 @@
       composition.pixelAspect,
       composition.duration
     );
+  } else {
+    // Проверяем, совпадает ли размер солида с размером композиции
+    if (control_layer.source.width !== composition.width || 
+        control_layer.source.height !== composition.height) {
+      // Масштабируем слой, чтобы он соответствовал размеру композиции
+      var scale_x = (composition.width / control_layer.source.width) * 100;
+      var scale_y = (composition.height / control_layer.source.height) * 100;
+      control_layer.property("Scale").setValue([scale_x, scale_y]);
+      control_layer.property("Position").setValue([composition.width / 2, composition.height / 2]);
+    }
   }
   control_layer.guideLayer = false;
   control_layer.enabled = true; // включаем видимость (глазик)
