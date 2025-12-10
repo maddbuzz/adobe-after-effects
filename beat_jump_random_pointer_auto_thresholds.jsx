@@ -235,6 +235,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "time_remap_pointers_total", "Slider", 2); // if (time_remap_use_clips_for_pointers === false) then best set to 3+
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then time_remap_pointers_total sets total pointers for ONE clip
   create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
@@ -260,6 +261,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const time_remap_pointers_total = beat_layer.effect("time_remap_pointers_total")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
+  const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
   const POINTERS_LEFT_TO_STOP = beat_layer.effect("POINTERS_LEFT_TO_STOP")("Slider").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
@@ -308,7 +310,15 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     return pointers;
   }
 
-  function get_pointers_from_clips(clips_times, pointers_per_clip) {
+  function get_pointers_from_clips(clips_times, pointers_per_clip, videoComp, USE_WORKAREA_INSTEAD_OF_CLIPS) {
+    // Если флаг установлен - игнорируем клипы и используем только workarea
+    if (USE_WORKAREA_INSTEAD_OF_CLIPS) {
+      var workarea_start = videoComp.workAreaStart;
+      var workarea_end = workarea_start + videoComp.workAreaDuration;
+      return get_even_pointers(workarea_start, workarea_end, pointers_per_clip, 0);
+    }
+    
+    // Иначе создаем указатели для каждого клипа
     const pointers = [];
     for (var i = 0; i < clips_times.length; i++) {
       var clip_times = clips_times[i];
@@ -325,7 +335,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var get_pointers_called = 0;
   function get_pointers() {
     get_pointers_called++;
-    if (time_remap_use_clips_for_pointers) return get_pointers_from_clips(video_clips_times, time_remap_pointers_total);
+    if (time_remap_use_clips_for_pointers) return get_pointers_from_clips(video_clips_times, time_remap_pointers_total, videoComp, USE_WORKAREA_INSTEAD_OF_CLIPS);
     else return get_even_pointers(video_start_time, video_end_time, time_remap_pointers_total, 0);
   }
 
@@ -646,6 +656,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "time_remap_pointers_total = " + time_remap_pointers_total + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
+    "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
     "POINTERS_LEFT_TO_STOP = " + POINTERS_LEFT_TO_STOP + "\n" +
     stopped_at_message +
     "bounced_total_max = " + bounced_total_max + "\n" +
