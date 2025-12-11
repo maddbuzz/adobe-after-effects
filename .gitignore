@@ -7,7 +7,9 @@
 /beat_jump_random_pointer_controls.jsx
 /beat_jump_random_pointer_controls_2.jsx
 /Pack Audio History.jsx
-/**/*.aep
+*.aep
+!2024_template.aep
+!2024_template_without_effects.aep
 /**/*.lnk
 /**/*.zip
 tweak_shader_ae_plugin/bz_bass.glsl
