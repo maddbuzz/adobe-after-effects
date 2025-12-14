@@ -315,9 +315,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     if (USE_WORKAREA_INSTEAD_OF_CLIPS) {
       var workarea_start = videoComp.workAreaStart;
       var workarea_end = workarea_start + videoComp.workAreaDuration;
-      return get_even_pointers(workarea_start, workarea_end, pointers_per_clip, 0);
+      return get_even_pointers(workarea_start, workarea_end, 1, 0);
     }
-    
+
     // Иначе создаем указатели для каждого клипа
     const pointers = [];
     for (var i = 0; i < clips_times.length; i++) {
@@ -457,15 +457,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var time_increment = frame_duration * speed_output;
       current_position += time_increment * direction;
       if (current_position > target_position) {
-        // current_position = target_position;
-        // pointers[pointer_index].direction = -1;
-        current_position = starting_position;
+        current_position = target_position;
+        pointers[pointer_index].direction = -1;
         pointers[pointer_index].bounced_total++;
       }
       if (current_position < starting_position) {
-        // current_position = starting_position;
-        // pointers[pointer_index].direction = +1;
-        current_position = target_position;
+        current_position = starting_position;
+        pointers[pointer_index].direction = +1;
         pointers[pointer_index].bounced_total++;
       }
       if (bounced_total_max < pointers[pointer_index].bounced_total) bounced_total_max = pointers[pointer_index].bounced_total;
