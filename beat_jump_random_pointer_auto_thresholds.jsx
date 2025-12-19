@@ -492,6 +492,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       if (opacity < 100) opacity++;
 
       if (FX_triggered) {
+        if (pointers[pointer_index].direction === -1 && current_position < target_position) {
+          pointers[pointer_index].direction = +1;
+          pointers[pointer_index].bounced_total++;
+        }
+
         var prev_effect_index = effect_index;
         effect_index = (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_index]++;
