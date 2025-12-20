@@ -3,8 +3,12 @@
 #define PI acos(-1)
 
 #pragma input(int, name = hue_shift, default = 0, min = -180, max = +180)
+#pragma input(int, name = bit_order, default = 0, min = 0, max = 5)
+#pragma input(float, name = diff_x, default = 0.0, min = 0.0, max = 1.0)
 layout(set = 1, binding = 1) uniform CustomInput {
     int hue_shift;
+    int bit_order; // 0=BRG, 1=BGR, 2=RBG, 3=RGB, 4=GBR, 5=GRB
+    float diff_x; // граница для грейскейла [0,1]
 };
 
 #pragma utility_block(ShaderInputs)
@@ -64,13 +68,44 @@ float rgb2gray(vec4 rgba) {
 	return dot(rgba.rgb, vec3(0.213,  0.715,  0.072));
 }
 
-vec4 get_bits(int c7) {
+vec4 get_bits(int c7, int order) {
+	// Извлекаем три бита
+	int bit0 = c7 % 2;
+	c7 /= 2;
+	int bit1 = c7 % 2;
+	c7 /= 2;
+	int bit2 = c7 % 2;
+	
 	vec4 bits = vec4(0);
-	bits.b = c7 % 2;
-	c7 /= 2;
-	bits.r = c7 % 2;
-	c7 /= 2;
-	bits.g = c7 % 2;
+	
+	// Присваиваем биты в зависимости от порядка
+	// order: 0=BRG, 1=BGR, 2=RBG, 3=RGB, 4=GBR, 5=GRB
+	if (order == 0) { // BRG
+		bits.b = bit0;
+		bits.r = bit1;
+		bits.g = bit2;
+	} else if (order == 1) { // BGR
+		bits.b = bit0;
+		bits.g = bit1;
+		bits.r = bit2;
+	} else if (order == 2) { // RBG
+		bits.r = bit0;
+		bits.b = bit1;
+		bits.g = bit2;
+	} else if (order == 3) { // RGB
+		bits.r = bit0;
+		bits.g = bit1;
+		bits.b = bit2;
+	} else if (order == 4) { // GBR
+		bits.g = bit0;
+		bits.b = bit1;
+		bits.r = bit2;
+	} else { // GRB (order == 5)
+		bits.g = bit0;
+		bits.r = bit1;
+		bits.b = bit2;
+	}
+	
 	return bits;
 }
 
@@ -86,15 +121,21 @@ void main() {
 
 	vec4 newcol = vec4(0);
 	for (int numb = 7; numb > 0; numb--) { //7..1
-		vec4 lo_bits = get_bits(numb - 1);	//6..0
+		vec4 lo_bits = get_bits(numb - 1, bit_order);	//6..0
 		float lo_L = rgb2gray(lo_bits);
 		if (L >= lo_L) {
-			vec4 hi_bits = get_bits(numb); 	//7..1
+			vec4 hi_bits = get_bits(numb, bit_order); 	//7..1
 			float hi_L = rgb2gray(hi_bits);
 			newcol = mix(lo_bits, hi_bits, (L - lo_L) / (hi_L - lo_L));
 			break;
 		}
 	}
 
-    out_color = vec4(newcol.rgb, original.a);
+	// Если пиксель левее границы diff_x, выдаем грейскейл из newcol
+	if (gl_FragCoord.x < diff_x * resolution.x) {
+		float gray = rgb2gray(newcol);
+		out_color = vec4(gray, gray, gray, original.a);
+	} else {
+		out_color = vec4(newcol.rgb, original.a);
+	}
 }
