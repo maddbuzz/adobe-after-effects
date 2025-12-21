@@ -365,6 +365,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   // var center_point_y = work_height / 2;
 
   var opacity = 100;
+  var time_to_revert_opacity = null;
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
   var S_WarpFishEye_inflation_start_time = null;
@@ -489,7 +490,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         }
       }
 
-      if (opacity < 100) opacity++;
+      // if (opacity < 100) opacity++;
+      if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
+        opacity = 100;
+        time_to_revert_opacity = null;
+      }
 
       if (FX_triggered) {
         if (pointers[pointer_index].direction === -1 && current_position < target_position) {
@@ -501,6 +506,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         effect_index = (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_index]++;
 
+        if (effect_index !== 1) opacity = 100;
+
         if (effect_index === 0) { // horizontal inversion
           hue += 0.5;
           sgn *= -1;
@@ -510,10 +517,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           scale_ADSR_deactivation_time = time;
           // center_point_x = getRandomInRange(0, work_width);
           // center_point_y = getRandomInRange(0, work_height);
+          time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_index === 2) { // opacity
-          hue += (Math.random() < 0.5 ? +0.25 : +0.75);
-          opacity = 0;
+          // hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          opacity = 50;
         }
         else if (effect_index === 3) { // jump in time
           hue = getRandomInRange(0, 1);
