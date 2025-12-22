@@ -78,7 +78,7 @@ void main() {
     vec4 original = get_texel(uv);
     // original = uv.xxxx;
 
-    if (1 - uv.y >= diff_y) {
+    if (1 - uv.y > diff_y) {
         out_color = original;
     } else {
     	vec3 newcol = vec3(original.rgb);
