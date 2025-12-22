@@ -93,7 +93,7 @@ vec3 get_two_colors(int colors_order) {
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
     vec4 original = get_texel(uv);
-    // vec4 original = uv.yyyy;
+    // original = uv.yyyy;
 	float L0 = rgb2gray(original.rgb); 
 
     vec3 one_color = get_one_color(colors_order);
@@ -108,7 +108,7 @@ void main() {
     else newcol = mix(two_colors, vec3(1), (L0 - L2) / (1 - L2));
     
 	// Если пиксель левее границы diff_x, выдаем грейскейл из newcol
-	if (gl_FragCoord.x < diff_x * resolution.x) {
+	if (uv.x < diff_x) {
 		float gray = rgb2gray(newcol);
 		out_color = vec4(gray, gray, gray, original.a);
 	} else {
