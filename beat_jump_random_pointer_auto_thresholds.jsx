@@ -339,8 +339,23 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     else return get_even_pointers(video_start_time, video_end_time, time_remap_pointers_total, 0);
   }
 
+  var randomize_pointers_called = 0;
+  function randomize_pointers(pointers) {
+    randomize_pointers_called++;
+    // Алгоритм Фишера-Йетса для случайной перетасовки массива
+    for (var i = pointers.length - 1; i > 0; i--) {
+      var j = getRandomInt(i); // j всегда будет от 0 до i-1, исключая случай j === i
+      var temp = pointers[i];
+      pointers[i] = pointers[j];
+      pointers[j] = temp;
+    }
+    return pointers;
+  }
+
   var pointers = get_pointers();
+  randomize_pointers(pointers);
   var pointer_index = 0; // getRandomInt(pointers.length);
+
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
@@ -537,17 +552,27 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             time_processing_stopped_at = time;
             break;
           }
-          if (pointers.length === 0) pointers = get_pointers();
-
-          if (time_remap_fixed_pointers_order) {
-            pointer_index = spliced
-              ? prev_pointer_index % pointers.length
-              : (prev_pointer_index + 1) % pointers.length;
-          } else {
-            pointer_index = spliced
-              ? getRandomInt(pointers.length)
-              : (prev_pointer_index + 1 + getRandomInt(pointers.length - 1)) % pointers.length;
+          if (pointers.length === 0) {
+            pointers = get_pointers();
+            randomize_pointers(pointers);
           }
+
+          pointer_index = spliced
+            ? prev_pointer_index
+            : prev_pointer_index + 1;
+          if (pointer_index >= pointers.length) {
+            randomize_pointers(pointers);
+            pointer_index = 0;
+          }
+          // if (time_remap_fixed_pointers_order) {
+          //   pointer_index = spliced
+          //     ? prev_pointer_index % pointers.length
+          //     : (prev_pointer_index + 1) % pointers.length;
+          // } else {
+          //   pointer_index = spliced
+          //     ? getRandomInt(pointers.length)
+          //     : (prev_pointer_index + 1 + getRandomInt(pointers.length - 1)) % pointers.length;
+          // }
 
           pointers_counters[pointers[pointer_index].number]++;
           current_position = pointers[pointer_index].current_position;
@@ -674,6 +699,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "hue_drift = " + hue_drift + "\n" +
     "auto_correction_window = " + auto_correction_window + "\n" +
     "get_pointers_called = " + get_pointers_called + "\n" +
+    "randomize_pointers_called = " + randomize_pointers_called + "\n" +
     "pointers_number_before = " + pointers_number_before + "\n" +
     "pointers_number_after = " + pointers_number_after + "\n" +
     "accumulated_time_minutes = " + accumulated_time_minutes + "\n" +
