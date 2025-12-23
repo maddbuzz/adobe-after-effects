@@ -340,13 +340,20 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   }
 
   var randomize_pointers_called = 0;
-  function randomize_pointers(pointers) {
+  function randomize_pointers(pointers, prev_pointer_number) {
     randomize_pointers_called++;
     // Алгоритм Фишера-Йетса для случайной перетасовки массива
     for (var i = pointers.length - 1; i > 0; i--) {
       var j = getRandomInt(i); // j всегда будет от 0 до i-1, исключая случай j === i
       var temp = pointers[i];
       pointers[i] = pointers[j];
+      pointers[j] = temp;
+    }
+    // Если prev_pointer_number задан и первый элемент равен ему, меняем с рандомным другим
+    if (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number) {
+      var j = getRandomInt(pointers.length - 1) + 1; // случайный индекс от 1 до length-1
+      var temp = pointers[0];
+      pointers[0] = pointers[j];
       pointers[j] = temp;
     }
     return pointers;
@@ -541,6 +548,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         else if (effect_index === 3) { // jump in time
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
+          var prev_pointer_number = pointers[pointer_index].number;
 
           var spliced = false;
           if (pointers[pointer_index].bounced_total) {
@@ -554,14 +562,15 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           }
           if (pointers.length === 0) {
             pointers = get_pointers();
-            randomize_pointers(pointers);
+            randomize_pointers(pointers, prev_pointer_number);
+            pointer_index = 0;
           }
 
           pointer_index = spliced
             ? prev_pointer_index
             : prev_pointer_index + 1;
           if (pointer_index >= pointers.length) {
-            randomize_pointers(pointers);
+            randomize_pointers(pointers, prev_pointer_number);
             pointer_index = 0;
           }
           // if (time_remap_fixed_pointers_order) {
