@@ -344,7 +344,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     randomize_pointers_called++;
     // Алгоритм Фишера-Йетса для случайной перетасовки массива
     for (var i = pointers.length - 1; i > 0; i--) {
-      var j = getRandomInt(i); // j всегда будет от 0 до i-1, исключая случай j === i
+      var j = getRandomInt(i + 1); // j от 0 до i включительно (правильный Фишер-Йетс)
       var temp = pointers[i];
       pointers[i] = pointers[j];
       pointers[j] = temp;
@@ -519,6 +519,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       }
 
       if (FX_triggered) {
+        ЗАПИЛИИИИИИИИИИИИИИИИИИИИИ
         if (pointers[pointer_index].direction === -1 && current_position < target_position) {
           pointers[pointer_index].direction = +1;
           pointers[pointer_index].bounced_total++;
@@ -542,7 +543,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_index === 2) { // opacity
-          // hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          ЗАПИЛИИИИИИИИИИИИИИИИИИИИИ // hue += (Math.random() < 0.5 ? +0.25 : +0.75);
           opacity = 50;
         }
         else if (effect_index === 3) { // jump in time
