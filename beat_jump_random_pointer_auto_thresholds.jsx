@@ -339,18 +339,32 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     else return get_even_pointers(video_start_time, video_end_time, time_remap_pointers_total, 0);
   }
 
+  function fisher_yates_shuffle(array) {
+    // Алгоритм Фишера-Йетса для случайной перетасовки массива
+    for (var i = array.length - 1; i > 0; i--) {
+      var j = getRandomInt(i + 1); // j от 0 до i включительно (правильный Фишер-Йетс)
+      var temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+    }
+    return array;
+  }
+
+  function get_random_permutation(last) {
+    // Возвращает случайную перестановку всех элементов от 0 до last включительно
+    var array = [];
+    for (var i = 0; i <= last; i++) {
+      array.push(i);
+    }
+    return fisher_yates_shuffle(array);
+  }
+
   var randomize_pointers_called = 0;
   function randomize_pointers(pointers, prev_pointer_number) {
     randomize_pointers_called++;
-    // Алгоритм Фишера-Йетса для случайной перетасовки массива
     // Если нужно избежать prev_pointer_number на первой позиции, перетасовываем до успеха
     do {
-      for (var i = pointers.length - 1; i > 0; i--) {
-        var j = getRandomInt(i + 1); // j от 0 до i включительно (правильный Фишер-Йетс)
-        var temp = pointers[i];
-        pointers[i] = pointers[j];
-        pointers[j] = temp;
-      }
+      fisher_yates_shuffle(pointers);
       // Если prev_pointer_number задан и первый элемент равен ему, перетасовываем заново
       // Это сохраняет равномерность распределения среди всех перестановок, где первый элемент ≠ prev_pointer_number
     } while (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number);
@@ -371,7 +385,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var sgn = +1;
 
   const TOTAL_EFFECTS = 4; // 0 - horizontal inversion, 1 - scale forward then backward, 2 - opacity, 3 - jump in time
-  var effect_index = getRandomInt(TOTAL_EFFECTS);
+  var effects_sequence = get_random_permutation(TOTAL_EFFECTS - 1);
+  var effect_sequence_index = 0;
   const effect_triggered_total = []; for (var i = 0; i < TOTAL_EFFECTS; i++) effect_triggered_total[i] = 0;
   const effect_triggered_values = [];
 
@@ -517,34 +532,40 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       }
 
       if (FX_triggered) {
-        ЗАПИЛИИИИИИИИИИИИИИИИИИИИИ
         if (pointers[pointer_index].direction === -1 && current_position < target_position) {
           pointers[pointer_index].direction = +1;
           pointers[pointer_index].bounced_total++;
         }
 
-        var prev_effect_index = effect_index;
-        effect_index = (prev_effect_index + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
-        effect_triggered_total[effect_index]++;
+        var prev_effect_number = effects_sequence[effect_sequence_index];
+        effect_sequence_index += 1;
+        if (effect_sequence_index >= TOTAL_EFFECTS) {
+          fisher_yates_shuffle(effects_sequence);
+          effect_sequence_index = 0;
+        }
+        var effect_number = effects_sequence[effect_sequence_index];
+        // var prev_effect_number = effect_number;
+        // effect_number = (prev_effect_number + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
+        effect_triggered_total[effect_number]++;
 
-        if (effect_index !== 1) opacity = 100;
+        if (effect_number !== 1) opacity = 100;
 
-        if (effect_index === 0) { // horizontal inversion
+        if (effect_number === 0) { // horizontal inversion
           hue += 0.5;
           sgn *= -1;
         }
-        else if (effect_index === 1) { // scale forward then backward
+        else if (effect_number === 1) { // scale forward then backward
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
           // center_point_x = getRandomInRange(0, work_width);
           // center_point_y = getRandomInRange(0, work_height);
           time_to_revert_opacity = time + scale_ADSR_attack;
         }
-        else if (effect_index === 2) { // opacity
-          ЗАПИЛИИИИИИИИИИИИИИИИИИИИИ // hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+        else if (effect_number === 2) { // opacity
+          if (prev_effect_number === 2) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
           opacity = 50;
         }
-        else if (effect_index === 3) { // jump in time
+        else if (effect_number === 3) { // jump in time
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
           var prev_pointer_number = pointers[pointer_index].number;
