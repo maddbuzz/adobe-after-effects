@@ -569,6 +569,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
           var prev_pointer_number = pointers[pointer_index].number;
+          
+          // Инкрементируем счетчик для текущего поинтера ДО его возможного удаления
+          pointers_counters[prev_pointer_number]++;
 
           var spliced = false;
           if (pointers[pointer_index].bounced_total) {
@@ -603,7 +606,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           //     : (prev_pointer_index + 1 + getRandomInt(pointers.length - 1)) % pointers.length;
           // }
 
-          pointers_counters[pointers[pointer_index].number]++;
           current_position = pointers[pointer_index].current_position;
         }
       }
