@@ -232,8 +232,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_delay", "Slider", 0); // seconds
-  create_new_or_return_existing_control(beat_layer, "time_remap_pointers_total", "Slider", 2); // if (time_remap_use_clips_for_pointers === false) then best set to 3+
-  create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then time_remap_pointers_total sets total pointers for ONE clip
+  create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
+  create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
   // create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
@@ -258,7 +258,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const S_WarpFishEye_Amount_pos_max = beat_layer.effect("S_WarpFishEye_Amount_pos_max")("Slider").value;
   const S_WarpFishEye_inflation_inc = beat_layer.effect("S_WarpFishEye_inflation_inc")("Slider").value;
   const S_WarpFishEye_inflation_delay = beat_layer.effect("S_WarpFishEye_inflation_delay")("Slider").value;
-  const time_remap_pointers_total = beat_layer.effect("time_remap_pointers_total")("Slider").value;
+  const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   // const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
@@ -289,33 +289,56 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const input_C_control = beat_layer.effect("BCC Beat Reactor")("Output Value C"); // в выражении для Amount эффекта S_WarpFishEye: -thisComp.layer("beat").effect("BCC Beat Reactor")("Output Value C") * 0.25
   // const input_A_control = beat_layer.effect("BCC Beat Reactor")("Output Value A");
 
-  function get_even_pointers(start, end, pointers_total, index_offset) {
+  function get_even_pointers(start, end, desired_length_seconds, index_offset) {
     const pointers = [];
-    const between = (end - start) / pointers_total;
-    for (var index = 0; index < pointers_total; index++) {
-      var time = start + index * between;
-      var starting_position = time;
-      var target_position = time + between - frame_duration;
-      var current_position = starting_position; // getRandomInRange(starting_position, target_position); // ????????
-      var direction = +1; //(Math.random() < 0.5 ? +1 : -1);
+    const total_duration = end - start;
+    
+    // Если общая длительность меньше желаемой длины или desired_length_seconds <= 0, создаем один указатель
+    if (total_duration < desired_length_seconds || desired_length_seconds <= 0) {
+      pointers.push({
+        number: index_offset,
+        starting_position: start,
+        current_position: start,
+        target_position: end - frame_duration,
+        direction: +1,
+        bounced_total: 0,
+      });
+      return pointers;
+    }
+    
+    // Создаем указатели
+    var index = 0;
+    var current_time = start;
+    while (current_time < end) {
+      var remaining = end - current_time;
+      if (remaining < desired_length_seconds) {
+        // Если оставшееся время меньше желаемой длины, добавляем его к последнему указателю
+        var last_pointer = pointers[pointers.length - 1];
+        last_pointer.target_position = end - frame_duration;
+        break;
+      }
+      
       pointers.push({
         number: index + index_offset,
-        starting_position: starting_position,
-        current_position: current_position,
-        target_position: target_position,
-        direction: direction,
+        starting_position: current_time,
+        current_position: current_time,
+        target_position: current_time + desired_length_seconds - frame_duration,
+        direction: +1,
         bounced_total: 0,
-      })
+      });
+      
+      current_time += desired_length_seconds;
+      index++;
     }
     return pointers;
   }
 
-  function get_pointers_from_clips(clips_times, pointers_per_clip, videoComp, USE_WORKAREA_INSTEAD_OF_CLIPS) {
+  function get_pointers_from_clips(clips_times, desired_length_seconds, videoComp, USE_WORKAREA_INSTEAD_OF_CLIPS) {
     // Если флаг установлен - игнорируем клипы и используем только workarea
     if (USE_WORKAREA_INSTEAD_OF_CLIPS) {
       var workarea_start = videoComp.workAreaStart;
       var workarea_end = workarea_start + videoComp.workAreaDuration;
-      return get_even_pointers(workarea_start, workarea_end, 1, 0);
+      return get_even_pointers(workarea_start, workarea_end, desired_length_seconds, 0);
     }
 
     // Иначе создаем указатели для каждого клипа
@@ -325,7 +348,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var pointers_in_clip = get_even_pointers(
         clip_times.clip_start_time,
         clip_times.clip_end_time,
-        pointers_per_clip,
+        desired_length_seconds,
         pointers.length);
       Array.prototype.push.apply(pointers, pointers_in_clip);
     }
@@ -335,8 +358,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var get_pointers_called = 0;
   function get_pointers() {
     get_pointers_called++;
-    if (time_remap_use_clips_for_pointers) return get_pointers_from_clips(video_clips_times, time_remap_pointers_total, videoComp, USE_WORKAREA_INSTEAD_OF_CLIPS);
-    else return get_even_pointers(video_start_time, video_end_time, time_remap_pointers_total, 0);
+    if (time_remap_use_clips_for_pointers) return get_pointers_from_clips(video_clips_times, desired_pointer_length_seconds, videoComp, USE_WORKAREA_INSTEAD_OF_CLIPS);
+    else return get_even_pointers(video_start_time, video_end_time, desired_pointer_length_seconds, 0);
   }
 
   function fisher_yates_shuffle(array) {
@@ -720,7 +743,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "S_WarpFishEye_Amount_pos_max = " + S_WarpFishEye_Amount_pos_max + "\n" +
     "S_WarpFishEye_inflation_inc = " + S_WarpFishEye_inflation_inc + "\n" +
     "S_WarpFishEye_inflation_delay = " + S_WarpFishEye_inflation_delay + "\n" +
-    "time_remap_pointers_total = " + time_remap_pointers_total + "\n" +
+    "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     // "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
