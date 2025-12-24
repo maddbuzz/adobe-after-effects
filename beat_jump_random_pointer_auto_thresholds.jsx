@@ -343,19 +343,17 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   function randomize_pointers(pointers, prev_pointer_number) {
     randomize_pointers_called++;
     // Алгоритм Фишера-Йетса для случайной перетасовки массива
-    for (var i = pointers.length - 1; i > 0; i--) {
-      var j = getRandomInt(i + 1); // j от 0 до i включительно (правильный Фишер-Йетс)
-      var temp = pointers[i];
-      pointers[i] = pointers[j];
-      pointers[j] = temp;
-    }
-    // Если prev_pointer_number задан и первый элемент равен ему, меняем с рандомным другим
-    if (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number) {
-      var j = getRandomInt(pointers.length - 1) + 1; // случайный индекс от 1 до length-1
-      var temp = pointers[0];
-      pointers[0] = pointers[j];
-      pointers[j] = temp;
-    }
+    // Если нужно избежать prev_pointer_number на первой позиции, перетасовываем до успеха
+    do {
+      for (var i = pointers.length - 1; i > 0; i--) {
+        var j = getRandomInt(i + 1); // j от 0 до i включительно (правильный Фишер-Йетс)
+        var temp = pointers[i];
+        pointers[i] = pointers[j];
+        pointers[j] = temp;
+      }
+      // Если prev_pointer_number задан и первый элемент равен ему, перетасовываем заново
+      // Это сохраняет равномерность распределения среди всех перестановок, где первый элемент ≠ prev_pointer_number
+    } while (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number);
     return pointers;
   }
 
