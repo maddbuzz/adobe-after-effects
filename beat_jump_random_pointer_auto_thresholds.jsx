@@ -777,6 +777,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "unique_to_total_ratio = " + unique_to_total_ratio + "\n" +
     "total_accumulated_time_minutes = " + total_accumulated_time_minutes + "\n" +
     "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
+    "total_accumulated_time_minutes / processed_duration_minutes = " + total_accumulated_time_minutes / processed_duration_minutes + "\n" +
     "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
     "video_duration_minutes = " + video_duration_minutes + "\n" +
     "processed_duration_minutes / video_duration_minutes = " + processed_duration_minutes / video_duration_minutes + "\n" +
