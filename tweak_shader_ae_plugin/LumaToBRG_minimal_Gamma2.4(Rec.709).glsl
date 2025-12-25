@@ -61,7 +61,8 @@ vec4 get_texel(vec2 uv) {
 }
 
 float rgb2gray(vec3 rgb) {
-	return dot(rgb, vec3(0.213,  0.715,  0.072));
+	// return dot(rgb, vec3(0.213,  0.715,  0.072));
+	return dot(rgb, vec3(0.2126,  0.7152,  0.0722)); // веса при Rec. 709 (гамма 2.4)
 }
 
 vec3 get_bits(int c7) {
