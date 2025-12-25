@@ -404,8 +404,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
 
-  var accumulated_time = 0;
-  var then_accumulated_reach_video_duration = null;
+  var unique_accumulated_time = 0;
+  var total_accumulated_time = 0;
+  var then_unique_reach_video_duration = null;
   var hue = getRandomInRange(0, 1);
   var sgn = +1;
 
@@ -514,6 +515,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var starting_position = pointers[pointer_index].starting_position;
       var target_position = pointers[pointer_index].target_position;
       var current_position = pointers[pointer_index].current_position;
+      var old_current_position = current_position;
+      var old_bounced_total = pointers[pointer_index].bounced_total;
       var direction = pointers[pointer_index].direction;
       var time_increment = frame_duration * speed_output;
       current_position += time_increment * direction;
@@ -530,8 +533,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       if (bounced_total_max < pointers[pointer_index].bounced_total) bounced_total_max = pointers[pointer_index].bounced_total;
       pointers[pointer_index].current_position = current_position;
 
-      accumulated_time += (pointers[pointer_index].bounced_total ? 0 : time_increment);
-      if (accumulated_time >= (video_end_time - video_start_time) && then_accumulated_reach_video_duration === null) then_accumulated_reach_video_duration = time;
+      var position_diff = Math.abs(current_position - old_current_position);
+      unique_accumulated_time += (old_bounced_total ? 0 : position_diff);
+      total_accumulated_time += position_diff;
+      if (unique_accumulated_time >= (video_end_time - video_start_time) && then_unique_reach_video_duration === null) then_unique_reach_video_duration = time;
 
       var FX_triggered = false;
 
@@ -724,7 +729,10 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   const work_area_duration_minutes = (work_end_time - work_start_time) / 60;
   const video_duration_minutes = (video_end_time - video_start_time) / 60;
-  const accumulated_time_minutes = accumulated_time / 60;
+  const unique_accumulated_time_minutes = unique_accumulated_time / 60;
+  const total_accumulated_time_minutes = total_accumulated_time / 60;
+  const unique_to_total_ratio = total_accumulated_time > 0 ? unique_accumulated_time / total_accumulated_time : 0;
+  const total_accumulated_time_per_effect3 = effect_triggered_total[3] > 0 ? total_accumulated_time / effect_triggered_total[3] : 0;
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
   const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
 
@@ -764,9 +772,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "randomize_pointers_called = " + randomize_pointers_called + "\n" +
     "pointers_number_before = " + pointers_number_before + "\n" +
     "pointers_number_after = " + pointers_number_after + "\n" +
-    "accumulated_time_minutes = " + accumulated_time_minutes + "\n" +
-    "accumulated_time_minutes / video_duration_minutes = " + accumulated_time_minutes / video_duration_minutes + "\n" +
-    "then_accumulated_reach_video_duration = " + then_accumulated_reach_video_duration + "\n" +
+    "unique_accumulated_time_minutes = " + unique_accumulated_time_minutes + "\n" +
+    "unique_accumulated_time_minutes / video_duration_minutes = " + unique_accumulated_time_minutes / video_duration_minutes + "\n" +
+    "total_accumulated_time_minutes = " + total_accumulated_time_minutes + "\n" +
+    "total_accumulated_time_minutes / video_duration_minutes = " + total_accumulated_time_minutes / video_duration_minutes + "\n" +
+    "unique_accumulated_time / total_accumulated_time = " + unique_to_total_ratio + "\n" +
+    "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
     "video_duration_minutes = " + video_duration_minutes + "\n" +
     "processed_duration_minutes / video_duration_minutes = " + processed_duration_minutes / video_duration_minutes + "\n" +
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
@@ -774,6 +785,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
     "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
+    "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n"
