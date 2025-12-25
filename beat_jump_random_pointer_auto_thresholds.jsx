@@ -294,7 +294,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   function get_even_pointers(start, end, desired_length_seconds, index_offset) {
     const pointers = [];
     const total_duration = end - start;
-    
+
     // Если общая длительность меньше желаемой длины или desired_length_seconds <= 0, создаем один указатель
     if (total_duration < desired_length_seconds || desired_length_seconds <= 0) {
       pointers.push({
@@ -307,7 +307,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       });
       return pointers;
     }
-    
+
     // Создаем указатели
     var index = 0;
     var current_time = start;
@@ -319,7 +319,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         last_pointer.target_position = end - frame_duration;
         break;
       }
-      
+
       pointers.push({
         number: index + index_offset,
         starting_position: current_time,
@@ -328,7 +328,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         direction: +1,
         bounced_total: 0,
       });
-      
+
       current_time += desired_length_seconds;
       index++;
     }
@@ -599,7 +599,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
           var prev_pointer_number = pointers[pointer_index].number;
-          
+
           // Инкрементируем счетчик для текущего поинтера ДО его возможного удаления
           pointers_counters[prev_pointer_number]++;
 
@@ -675,8 +675,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           thisComp.layer("beat").effect("script_output")("Color")[3];
         CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
           thisComp.layer("beat").effect("script_output1")("Slider");
-        S_HueSatBright Hue Shift:
-          thisComp.layer("beat").effect("script_output")("Color")[2];
+        BCC Hue-Sat-Lightness (set "Color Space" to "HSLuma"!!!):
+          360 * thisComp.layer("beat").effect("script_output")("Color")[2];
         Transform Scale:
           signed_scale = thisComp.layer("beat").effect("script_output")("Color")[1]; // [100;200] | [-100;-200]
           [signed_scale, Math.abs(signed_scale)];
