@@ -773,14 +773,14 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "pointers_number_before = " + pointers_number_before + "\n" +
     "pointers_number_after = " + pointers_number_after + "\n" +
     "unique_accumulated_time_minutes = " + unique_accumulated_time_minutes + "\n" +
-    "unique_accumulated_time_minutes / video_duration_minutes = " + unique_accumulated_time_minutes / video_duration_minutes + "\n" +
+    "unique_accumulated_time / video_duration = " + unique_accumulated_time_minutes / video_duration_minutes + "\n" +
     "unique_to_total_ratio = " + unique_to_total_ratio + "\n" +
     "total_accumulated_time_minutes = " + total_accumulated_time_minutes + "\n" +
     "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
-    "total_accumulated_time_minutes / processed_duration_minutes = " + total_accumulated_time_minutes / processed_duration_minutes + "\n" +
+    "total_accumulated_time / processed_duration = " + total_accumulated_time_minutes / processed_duration_minutes + "\n" +
     "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
     "video_duration_minutes = " + video_duration_minutes + "\n" +
-    "processed_duration_minutes / video_duration_minutes = " + processed_duration_minutes / video_duration_minutes + "\n" +
+    "processed_duration / video_duration = " + processed_duration_minutes / video_duration_minutes + "\n" +
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
