@@ -536,7 +536,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var position_diff = Math.abs(current_position - old_current_position);
       unique_accumulated_time += (old_bounced_total ? 0 : position_diff);
       total_accumulated_time += position_diff;
-      if (unique_accumulated_time >= (video_end_time - video_start_time) && then_unique_reach_video_duration === null) then_unique_reach_video_duration = time;
+      if (then_unique_reach_video_duration === null && unique_accumulated_time >= (video_end_time - video_start_time)) then_unique_reach_video_duration = time;
 
       var FX_triggered = false;
 
@@ -774,9 +774,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "pointers_number_after = " + pointers_number_after + "\n" +
     "unique_accumulated_time_minutes = " + unique_accumulated_time_minutes + "\n" +
     "unique_accumulated_time_minutes / video_duration_minutes = " + unique_accumulated_time_minutes / video_duration_minutes + "\n" +
+    "unique_to_total_ratio = " + unique_to_total_ratio + "\n" +
     "total_accumulated_time_minutes = " + total_accumulated_time_minutes + "\n" +
-    "total_accumulated_time_minutes / video_duration_minutes = " + total_accumulated_time_minutes / video_duration_minutes + "\n" +
-    "unique_accumulated_time / total_accumulated_time = " + unique_to_total_ratio + "\n" +
+    "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
     "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
     "video_duration_minutes = " + video_duration_minutes + "\n" +
     "processed_duration_minutes / video_duration_minutes = " + processed_duration_minutes / video_duration_minutes + "\n" +
@@ -785,7 +785,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
     "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
-    "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n"
