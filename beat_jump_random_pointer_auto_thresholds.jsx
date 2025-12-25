@@ -233,6 +233,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_delay", "Slider", 0); // seconds
   create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
+  create_new_or_return_existing_control(beat_layer, "STOP_AFTER_FULL_SEQUENCES", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
   // create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
@@ -259,6 +260,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const S_WarpFishEye_inflation_inc = beat_layer.effect("S_WarpFishEye_inflation_inc")("Slider").value;
   const S_WarpFishEye_inflation_delay = beat_layer.effect("S_WarpFishEye_inflation_delay")("Slider").value;
   const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
+  const STOP_AFTER_FULL_SEQUENCES = beat_layer.effect("STOP_AFTER_FULL_SEQUENCES")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   // const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
@@ -619,6 +621,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             randomize_pointers(pointers, prev_pointer_number);
             pointer_index = 0;
           }
+          if (STOP_AFTER_FULL_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_FULL_SEQUENCES) {
+            time_processing_stopped_at = time;
+            break;
+          }
+
           // if (time_remap_fixed_pointers_order) {
           //   pointer_index = spliced
           //     ? prev_pointer_index % pointers.length
@@ -744,6 +751,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "S_WarpFishEye_inflation_inc = " + S_WarpFishEye_inflation_inc + "\n" +
     "S_WarpFishEye_inflation_delay = " + S_WarpFishEye_inflation_delay + "\n" +
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
+    "STOP_AFTER_FULL_SEQUENCES = " + STOP_AFTER_FULL_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     // "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
