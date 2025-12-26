@@ -675,8 +675,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           thisComp.layer("beat").effect("script_output")("Color")[3];
         CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
           thisComp.layer("beat").effect("script_output1")("Slider");
-        BCC Hue-Sat-Lightness (set "Color Space" to "HSLuma"!!!):
-          360 * thisComp.layer("beat").effect("script_output")("Color")[2];
+        BCC Hue-Sat-Lightness (режим "Color Space" = "HSLuma" - вроде как не портит яркость, по крайней мере если после посмотреть через Tint):
+          thisComp.layer("beat").effect("script_output")("Color")[2];
         Transform Scale:
           signed_scale = thisComp.layer("beat").effect("script_output")("Color")[1]; // [100;200] | [-100;-200]
           [signed_scale, Math.abs(signed_scale)];
@@ -692,7 +692,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           [center_x, center_y];
       */
       frame_times[index_in_batch] = time;
-      frame_output0_values[index_in_batch] = [current_position, signed_scale, hue, S_WarpFishEye_Amount];
+      frame_output0_values[index_in_batch] = [current_position, signed_scale, hue * 360, S_WarpFishEye_Amount];
       frame_output1_values[index_in_batch] = opacity;
       // frame_output1_values[index_in_batch] = [opacity, center_point_x, center_point_y, 0];
     }
