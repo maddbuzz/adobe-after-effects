@@ -194,7 +194,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   if (!proceed) return;
 
   const script_start_time = Date.now();
-  // app.beginUndoGroup(script_filename);
+  app.beginUndoGroup(script_filename);
   app.project.suspendRendering = true;   // скрытое свойство, работает
   app.disableUpdates = true;             // скрытое свойство, уменьшает перерисовки
 
@@ -594,7 +594,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         else if (effect_number === 2) { // opacity
           opacity = 50;
           if (prev_effect_number === 2) {
-            opacity = 100;
+            opacity = 0;
             hue += (Math.random() < 0.5 ? +0.25 : +0.75);
           }
         }
@@ -711,12 +711,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   app.disableUpdates = false;
   app.project.suspendRendering = false;
-  // app.endUndoGroup();
+  app.endUndoGroup();
 
   if (time_processing_stopped_at !== null) {
-    // app.beginUndoGroup("Set Playhead");
+    app.beginUndoGroup("Set Playhead");
     beatComp.time = time_processing_stopped_at;
-    // app.endUndoGroup();
+    app.endUndoGroup();
   }
 
   const script_end_time = Date.now();
