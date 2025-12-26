@@ -562,9 +562,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       }
 
       if (FX_triggered) {
-        if (pointers[pointer_index].direction === -1 && current_position < target_position) {
-          pointers[pointer_index].direction = +1;
-          pointers[pointer_index].bounced_total++;
+        if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
+          pointers[pointer_index].direction *= -1;
+          pointers[pointer_index].bounced_total++; // это тоже баунс, хоть и не от краев
         }
 
         var prev_effect_number = effects_sequence[effect_sequence_index];
