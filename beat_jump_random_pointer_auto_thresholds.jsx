@@ -592,8 +592,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_number === 2) { // opacity
-          if (prev_effect_number === 2) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
           opacity = 50;
+          if (prev_effect_number === 2) {
+            opacity = 100;
+            hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          }
         }
         else if (effect_number === 3) { // jump in time
           hue = getRandomInRange(0, 1);
