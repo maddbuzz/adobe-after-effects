@@ -548,7 +548,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         }
       }
 
-      // if (opacity < 100) opacity++;
       if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
         opacity = 100;
         time_to_revert_opacity = null;
@@ -571,7 +570,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
         // effect_number = (prev_effect_number + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_number]++;
 
-        if (effect_number !== 1) opacity = 100;
+        if (effect_number !== 1 && effect_number !== 2) opacity = 100;
 
         if (effect_number === 0) { // horizontal inversion
           hue += 0.5;
@@ -585,10 +584,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_number === 2) { // opacity
+          time_to_revert_opacity = null;
+          if (prev_effect_number === 2 && opacity !== 50) throw new Error("Effect #" + effect_number + " error: prev_effect_number === 2 && opacity !== 50 (" + opacity + ")");
+
           if (opacity === 100) opacity = 50;
           else if (opacity === 50) opacity = 0;
-          else throw new Error("Effect #" + effect_number + " error: unexpected opacity " + opacity);
-          // if (prev_effect_number === 2) ...
+          else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
         }
         else if (effect_number === 3) { // jump in time
           var prev_pointer_index = pointer_index;
