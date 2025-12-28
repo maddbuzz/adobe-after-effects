@@ -230,8 +230,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
-  create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_inc", "Slider", 0.0005);
-  create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_inflation_delay", "Slider", 0); // seconds
   create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "STOP_AFTER_FULL_SEQUENCES", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
@@ -257,8 +255,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const speed_min = beat_layer.effect("speed_min")("Slider").value;
   const S_WarpFishEye_Amount_neg_max = beat_layer.effect("S_WarpFishEye_Amount_neg_max")("Slider").value;
   const S_WarpFishEye_Amount_pos_max = beat_layer.effect("S_WarpFishEye_Amount_pos_max")("Slider").value;
-  const S_WarpFishEye_inflation_inc = beat_layer.effect("S_WarpFishEye_inflation_inc")("Slider").value;
-  const S_WarpFishEye_inflation_delay = beat_layer.effect("S_WarpFishEye_inflation_delay")("Slider").value;
   const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
   const STOP_AFTER_FULL_SEQUENCES = beat_layer.effect("STOP_AFTER_FULL_SEQUENCES")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
@@ -385,14 +381,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   }
 
   var randomize_pointers_called = 0;
-  function randomize_pointers(pointers, prev_pointer_number) {
+  function randomize_pointers(pointers, prev_pointer_number) { // TODO remove prev_pointer_number
     randomize_pointers_called++;
-    // Если нужно избежать prev_pointer_number на первой позиции, перетасовываем до успеха
     do {
       fisher_yates_shuffle(pointers);
-      // Если prev_pointer_number задан и первый элемент равен ему, перетасовываем заново
-      // Это сохраняет равномерность распределения среди всех перестановок, где первый элемент ≠ prev_pointer_number
-    } while (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number);
+      // } while (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number);
+    } while (false);
     return pointers;
   }
 
@@ -429,7 +423,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   var time_to_revert_opacity = null;
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
-  var S_WarpFishEye_inflation_start_time = null;
 
   var input_C_deactivation_value_equal_activation_value = 0;
   var windows_stats_max_equal_min = 0;
@@ -592,14 +585,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_number === 2) { // opacity
-          opacity = 50;
-          if (prev_effect_number === 2) {
-            opacity = 0;
-            hue += (Math.random() < 0.5 ? +0.25 : +0.75);
-          }
+          if (opacity === 100) opacity = 50;
+          else if (opacity === 50) opacity = 0;
+          else throw new Error("Effect #" + effect_number + " error: unexpected opacity " + opacity);
+          // if (prev_effect_number === 2) ...
         }
         else if (effect_number === 3) { // jump in time
-          hue = getRandomInRange(0, 1);
           var prev_pointer_index = pointer_index;
           var prev_pointer_number = pointers[pointer_index].number;
 
@@ -634,15 +625,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             break;
           }
 
-          // if (time_remap_fixed_pointers_order) {
-          //   pointer_index = spliced
-          //     ? prev_pointer_index % pointers.length
-          //     : (prev_pointer_index + 1) % pointers.length;
-          // } else {
-          //   pointer_index = spliced
-          //     ? getRandomInt(pointers.length)
-          //     : (prev_pointer_index + 1 + getRandomInt(pointers.length - 1)) % pointers.length;
-          // }
+          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          else hue = getRandomInRange(0, 1);
 
           current_position = pointers[pointer_index].current_position;
         }
@@ -654,18 +638,13 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
       var signed_scale = sgn * scale;
 
       if (!warp_inputs) warp_inputs = window_stats;
-      if (S_WarpFishEye_inflation_start_time === null && input_C_value <= warp_inputs.min) S_WarpFishEye_inflation_start_time = time;
-      if (input_C_value > warp_inputs.min) S_WarpFishEye_inflation_start_time = null;
-      if (S_WarpFishEye_inflation_start_time === null) {
+      if (warp_inputs.max - warp_inputs.min !== 0) {
         S_WarpFishEye_Amount = lerp(
           0,
           S_WarpFishEye_Amount_neg_max,
           (input_C_value - warp_inputs.min) / (warp_inputs.max - warp_inputs.min)
         );
-      } else if (time - S_WarpFishEye_inflation_start_time > S_WarpFishEye_inflation_delay) {
-        S_WarpFishEye_Amount += S_WarpFishEye_inflation_inc;
-        S_WarpFishEye_Amount = clamp(S_WarpFishEye_Amount, 0, S_WarpFishEye_Amount_pos_max);
-      }
+      } else S_WarpFishEye_Amount = 0;
       if (input_C_value <= warp_inputs.min) warp_inputs = undefined;
 
       hue = fract_abs(hue + hue_drift);
@@ -759,8 +738,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "speed_min = " + speed_min + "\n" +
     "S_WarpFishEye_Amount_neg_max = " + S_WarpFishEye_Amount_neg_max + "\n" +
     "S_WarpFishEye_Amount_pos_max = " + S_WarpFishEye_Amount_pos_max + "\n" +
-    "S_WarpFishEye_inflation_inc = " + S_WarpFishEye_inflation_inc + "\n" +
-    "S_WarpFishEye_inflation_delay = " + S_WarpFishEye_inflation_delay + "\n" +
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
     "STOP_AFTER_FULL_SEQUENCES = " + STOP_AFTER_FULL_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
