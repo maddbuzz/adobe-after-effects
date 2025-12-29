@@ -394,6 +394,11 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   randomize_pointers(pointers);
   var pointer_index = 0; // getRandomInt(pointers.length);
 
+  var pointer_sequences_stats = [{
+    start_time_seconds: work_start_time,
+    duration_minutes: 0,
+  }];
+
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
@@ -620,6 +625,12 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           if (pointer_index >= pointers.length) {
             randomize_pointers(pointers, prev_pointer_number);
             pointer_index = 0;
+            
+            pointer_sequences_stats[pointer_sequences_stats.length - 1].duration_minutes = (time - pointer_sequences_stats[pointer_sequences_stats.length - 1].start_time_seconds) / 60;
+            pointer_sequences_stats.push({
+              start_time_seconds: time,
+              duration_minutes: 0
+            });
           }
           if (STOP_AFTER_FULL_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_FULL_SEQUENCES) {
             time_processing_stopped_at = time;
@@ -769,6 +780,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
-    "pointers_counters = " + JSON.stringify(pointers_counters) + "\n"
+    "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
+    "pointer_sequences_stats = " + JSON.stringify(pointer_sequences_stats) + "\n"
   );
 })();
