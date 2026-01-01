@@ -742,7 +742,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   for (var i = 0; i < pointer_sequences_stats.length; i++) {
     var seq = pointer_sequences_stats[i];
     var n = i + 1;
-    var length_minutes = Math.round(seq.duration_minutes * 10) / 10; // округление до 1 знака после запятой
+    var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
     pointer_sequences_stats_lines.push(n + " - " + length_minutes);
   }
   var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0 
