@@ -729,6 +729,25 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const total_accumulated_time_per_effect3 = effect_triggered_total[3] > 0 ? total_accumulated_time / effect_triggered_total[3] : 0;
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
   const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
+  
+  // Обновляем длительность последней последовательности, если скрипт остановился
+  if (time_processing_stopped_at !== null && pointer_sequences_stats.length > 0) {
+    var last_seq = pointer_sequences_stats[pointer_sequences_stats.length - 1];
+    if (last_seq.duration_minutes === 0) {
+      last_seq.duration_minutes = (time_processing_stopped_at - last_seq.start_time_seconds) / 60;
+    }
+  }
+  // Формируем построчный вывод последовательностей
+  var pointer_sequences_stats_lines = [];
+  for (var i = 0; i < pointer_sequences_stats.length; i++) {
+    var seq = pointer_sequences_stats[i];
+    var n = i + 1;
+    var length_minutes = Math.round(seq.duration_minutes * 10) / 10; // округление до 1 знака после запятой
+    pointer_sequences_stats_lines.push(n + " - " + length_minutes);
+  }
+  var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0 
+    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("\n") + "\n"
+    : "pointer_sequences_stats: (empty)\n";
 
   alert(
     script_filename + "\n" +
@@ -781,6 +800,6 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
-    "pointer_sequences_stats = " + JSON.stringify(pointer_sequences_stats) + "\n"
+    pointer_sequences_stats_output
   );
 })();
