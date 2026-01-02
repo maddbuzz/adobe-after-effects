@@ -193,7 +193,8 @@
     "Количество слоев: " + durations.length + "\n" +
     "Минимальная длительность: " + min_duration.toFixed(3) + " сек\n" +
     "Средняя длительность: " + avg_duration.toFixed(3) + " сек\n" +
-    "Максимальная длительность: " + max_duration.toFixed(3) + " сек";
+    "Максимальная длительность: " + max_duration.toFixed(3) + " сек\n" +
+    "Суммарная длительность: " + sum_duration.toFixed(3) + " сек";
   alert(stats_message);
 
   app.endUndoGroup();
