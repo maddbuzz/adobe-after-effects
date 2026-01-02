@@ -734,12 +734,23 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
 
   // Формируем построчный вывод последовательностей
+  function padTwoDigits(num) {
+    var n = Math.floor(num % 100);
+    return (n < 10 ? "0" : "") + n.toString();
+  }
+  function formatTime(seconds) {
+    var hours = Math.floor(seconds / 3600);
+    var minutes = Math.floor((seconds % 3600) / 60);
+    var secs = Math.floor(seconds % 60);
+    return padTwoDigits(hours) + ":" + padTwoDigits(minutes) + ":" + padTwoDigits(secs);
+  }
   var pointer_sequences_stats_lines = [];
   for (var i = 0; i < pointer_sequences_stats.length; i++) {
     var seq = pointer_sequences_stats[i];
     var n = i + 1;
     var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
-    pointer_sequences_stats_lines.push(n + ": " + length_minutes + "мин, " + seq.pointers_count + "ук");
+    var start_time_formatted = formatTime(seq.start_time_seconds);
+    pointer_sequences_stats_lines.push(start_time_formatted + " " + n + ": " + length_minutes + "мин, " + seq.pointers_count + "ук");
   }
   var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0
     ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("\n") + "\n"
