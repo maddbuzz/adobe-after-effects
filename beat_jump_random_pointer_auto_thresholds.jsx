@@ -103,8 +103,8 @@ function get_video_clips_start_end_times_in_composition(parent_composition, chil
   var child_composition = child_composition_layer.source;
   var result = [];
 
-  for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
-    // for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
+  // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
+  for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
     var layer = child_composition.layer(layer_index);
 
     if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
@@ -388,15 +388,15 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   }
 
   var pointers = get_pointers();
+  var zero_element = pointers.shift(); // убираем нулевой элемент
   randomize_pointers(pointers);
+  pointers.unshift(zero_element); // возвращаем нулевой элемент обратно
   var pointer_index = 0; // getRandomInt(pointers.length);
-
   var pointer_sequences_stats = [{
     start_time_seconds: work_start_time,
     duration_minutes: -1,
     pointers_count: pointers.length,
   }];
-
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
