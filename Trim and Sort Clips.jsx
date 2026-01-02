@@ -39,8 +39,8 @@
     );
   } else {
     // Проверяем, совпадает ли размер солида с размером композиции
-    if (control_layer.source.width !== composition.width || 
-        control_layer.source.height !== composition.height) {
+    if (control_layer.source.width !== composition.width ||
+      control_layer.source.height !== composition.height) {
       // Масштабируем слой, чтобы он соответствовал размеру композиции
       var scale_x = (composition.width / control_layer.source.width) * 100;
       var scale_y = (composition.height / control_layer.source.height) * 100;
@@ -162,6 +162,39 @@
   composition.workAreaDuration = current_time - 1 / composition.frameRate;
   control_layer.inPoint = 0;
   control_layer.outPoint = current_time;
+
+  // gather stats
+  var durations = [];
+  for (var i = 1; i <= composition.numLayers; i++) {
+    var layer = composition.layer(i);
+    if (
+      layer instanceof AVLayer &&
+      !layer.guideLayer &&
+      layer.name !== control_layer_name &&
+      (layer.hasVideo || layer.hasAudio)
+    ) {
+      var trimmed_duration = layer.outPoint - layer.inPoint;
+      durations.push(trimmed_duration);
+    }
+  }
+  // show stats
+  var min_duration = durations[0];
+  var max_duration = durations[0];
+  var sum_duration = 0;
+  for (var i = 0; i < durations.length; i++) {
+    var dur = durations[i];
+    if (dur < min_duration) min_duration = dur;
+    if (dur > max_duration) max_duration = dur;
+    sum_duration += dur;
+  }
+  var avg_duration = sum_duration / durations.length;
+  var stats_message =
+    "Статистика длительности слоев:\n\n" +
+    "Количество слоев: " + durations.length + "\n" +
+    "Минимальная длительность: " + min_duration.toFixed(3) + " сек\n" +
+    "Средняя длительность: " + avg_duration.toFixed(3) + " сек\n" +
+    "Максимальная длительность: " + max_duration.toFixed(3) + " сек";
+  alert(stats_message);
 
   app.endUndoGroup();
 })();
