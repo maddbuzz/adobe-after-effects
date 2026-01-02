@@ -396,7 +396,8 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
 
   var pointer_sequences_stats = [{
     start_time_seconds: work_start_time,
-    duration_minutes: 0,
+    duration_minutes: -1,
+    pointers_count: pointers.length,
   }];
 
   const pointers_number_before = pointers.length;
@@ -623,14 +624,16 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             ? prev_pointer_index
             : prev_pointer_index + 1;
           if (pointer_index >= pointers.length) {
-            randomize_pointers(pointers, prev_pointer_number);
-            pointer_index = 0;
-            
             pointer_sequences_stats[pointer_sequences_stats.length - 1].duration_minutes = (time - pointer_sequences_stats[pointer_sequences_stats.length - 1].start_time_seconds) / 60;
+            pointer_sequences_stats[pointer_sequences_stats.length - 1].pointers_count = pointers.length;
             pointer_sequences_stats.push({
               start_time_seconds: time,
-              duration_minutes: 0
+              duration_minutes: -1,
+              pointers_count: -1,
             });
+
+            randomize_pointers(pointers, prev_pointer_number);
+            pointer_index = 0;
           }
           if (STOP_AFTER_FULL_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_FULL_SEQUENCES) {
             time_processing_stopped_at = time;
@@ -730,23 +733,16 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
   const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
   
-  // Обновляем длительность последней последовательности, если скрипт остановился
-  if (time_processing_stopped_at !== null && pointer_sequences_stats.length > 0) {
-    var last_seq = pointer_sequences_stats[pointer_sequences_stats.length - 1];
-    if (last_seq.duration_minutes === 0) {
-      last_seq.duration_minutes = (time_processing_stopped_at - last_seq.start_time_seconds) / 60;
-    }
-  }
   // Формируем построчный вывод последовательностей
   var pointer_sequences_stats_lines = [];
   for (var i = 0; i < pointer_sequences_stats.length; i++) {
     var seq = pointer_sequences_stats[i];
     var n = i + 1;
     var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
-    pointer_sequences_stats_lines.push(n + " - " + length_minutes);
+    pointer_sequences_stats_lines.push(n + " - " + length_minutes + "мин. (" + seq.pointers_count + " ук.)");
   }
   var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0 
-    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("\n") + "\n"
+    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("; ") + "\n"
     : "pointer_sequences_stats: (empty)\n";
 
   alert(
