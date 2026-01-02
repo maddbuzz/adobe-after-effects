@@ -55,9 +55,10 @@ for (var i = 0; i < selectedLayers.length; i++) {
   temp_bat.write("@chcp 65001 >nul\n");
   temp_bat.write("@echo off\n");
   // Запускаем PowerShell команду с правильным перенаправлением stderr
+  // Выводим в консоль и одновременно записываем в файл
   temp_bat.write("powershell -NoProfile -Command \"& '" + ffmpeg_path_escaped + "' -i '" + video_path_escaped + "'" +
     " -vf blackdetect=d=0:pic_th=0.98:pix_th=0.10 -an -f null - *>&1 | " +
-    "Out-File -FilePath '" + log_file_path_escaped + "' -Encoding UTF8\"\n");
+    "ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath '" + log_file_path_escaped + "' -Encoding UTF8\"\n");
   temp_bat.close();
 
   system.callSystem("cmd /c \"" + temp_bat.fsName + "\"");
