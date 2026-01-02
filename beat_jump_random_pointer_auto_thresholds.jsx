@@ -625,16 +625,15 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
             ? prev_pointer_index
             : prev_pointer_index + 1;
           if (pointer_index >= pointers.length) {
+            randomize_pointers(pointers);
+            pointer_index = 0;
+
             pointer_sequences_stats[pointer_sequences_stats.length - 1].duration_minutes = (time - pointer_sequences_stats[pointer_sequences_stats.length - 1].start_time_seconds) / 60;
-            pointer_sequences_stats[pointer_sequences_stats.length - 1].pointers_count = pointers.length;
             pointer_sequences_stats.push({
               start_time_seconds: time,
               duration_minutes: -1,
-              pointers_count: -1,
+              pointers_count: pointers.length,
             });
-
-            randomize_pointers(pointers);
-            pointer_index = 0;
           }
           if (STOP_AFTER_FULL_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_FULL_SEQUENCES) {
             time_processing_stopped_at = time;
