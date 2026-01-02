@@ -381,12 +381,9 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   }
 
   var randomize_pointers_called = 0;
-  function randomize_pointers(pointers, prev_pointer_number) { // TODO remove prev_pointer_number
+  function randomize_pointers(pointers) {
     randomize_pointers_called++;
-    do {
-      fisher_yates_shuffle(pointers);
-      // } while (prev_pointer_number !== undefined && pointers.length > 1 && pointers[0].number === prev_pointer_number);
-    } while (false);
+    fisher_yates_shuffle(pointers);
     return pointers;
   }
 
@@ -616,7 +613,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
           }
           if (pointers.length === 0) {
             pointers = get_pointers();
-            randomize_pointers(pointers, prev_pointer_number);
+            randomize_pointers(pointers);
             pointer_index = 0;
           }
 
@@ -632,7 +629,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
               pointers_count: -1,
             });
 
-            randomize_pointers(pointers, prev_pointer_number);
+            randomize_pointers(pointers);
             pointer_index = 0;
           }
           if (STOP_AFTER_FULL_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_FULL_SEQUENCES) {
@@ -732,7 +729,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
   const total_accumulated_time_per_effect3 = effect_triggered_total[3] > 0 ? total_accumulated_time / effect_triggered_total[3] : 0;
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
   const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
-  
+
   // Формируем построчный вывод последовательностей
   var pointer_sequences_stats_lines = [];
   for (var i = 0; i < pointer_sequences_stats.length; i++) {
@@ -741,7 +738,7 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
     pointer_sequences_stats_lines.push(n + " - " + length_minutes + "мин. (" + seq.pointers_count + " ук.)");
   }
-  var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0 
+  var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0
     ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("; ") + "\n"
     : "pointer_sequences_stats: (empty)\n";
 
