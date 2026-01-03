@@ -788,6 +788,7 @@
     // "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
     "USE_VISIBLE_CLIPS_ONLY = " + USE_VISIBLE_CLIPS_ONLY + "\n" +
+    (!USE_WORKAREA_INSTEAD_OF_CLIPS ? "USED_CLIPS_COUNT = " + video_clips_times.length + "\n" : "") +
     "POINTERS_LEFT_TO_STOP = " + POINTERS_LEFT_TO_STOP + "\n" +
     stopped_at_message +
     "bounced_total_max = " + bounced_total_max + "\n" +
