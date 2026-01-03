@@ -129,6 +129,7 @@
     }
 
     if (skipped_disabled_layers_count) alert("Пропущено выключенных слоев: " + skipped_disabled_layers_count);
+    if (result.length === 0) throw new Error("Не найдено ни одного видеоклипа");
     return result;
   }
 
