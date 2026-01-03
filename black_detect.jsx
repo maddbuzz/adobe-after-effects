@@ -16,6 +16,30 @@ if (selectedLayers.length === 0) {
   throw new Error("Не выбрано ни одного слоя");
 }
 
+// Выбор типа поиска: черное или белое
+var searchWhite = false;
+var dialog = new Window("dialog", "Выбор типа поиска");
+dialog.add("statictext", undefined, "Что искать?");
+var blackBtn = dialog.add("button", undefined, "Black");
+var whiteBtn = dialog.add("button", undefined, "White");
+blackBtn.onClick = function() {
+  searchWhite = false;
+  dialog.close(1);
+};
+whiteBtn.onClick = function() {
+  searchWhite = true;
+  dialog.close(1);
+};
+var dialogResult = dialog.show();
+if (dialogResult !== 1) {
+  // Диалог закрыт крестиком, останавливаем выполнение скрипта
+  throw new Error("Stopped by user");
+}
+
+// Константы имен маркеров
+var MARKER_START_NAME = searchWhite ? "WHITE START" : "BLACK START";
+var MARKER_END_NAME = searchWhite ? "WHITE END" : "BLACK END";
+
 // Статистика
 var processedSegments = 0;
 var totalDuration = 0;
@@ -59,6 +83,9 @@ for (var i = 0; i < selectedLayers.length; i++) {
 
   var ffmpeg_ss_param = " -ss " + visibleStartInFile.toFixed(6);
   var ffmpeg_t_param = " -t " + layerDuration.toFixed(6);
+  
+  // Формируем параметры фильтра: для белого добавляем negate
+  var vfParam = searchWhite ? "negate,blackdetect=d=0:pic_th=0.98:pix_th=0.10" : "blackdetect=d=0:pic_th=0.98:pix_th=0.10";
 
   var temp_bat = new File(Folder.temp.fsName + "\\black_detect_" + video_name_no_ext + "_" + i + ".bat");
   temp_bat.open("w");
@@ -66,7 +93,7 @@ for (var i = 0; i < selectedLayers.length; i++) {
   temp_bat.write("@chcp 65001 >nul\n");
   temp_bat.write("@echo off\n");
   temp_bat.write("powershell -NoProfile -Command \"& '" + ffmpeg_path_escaped + "'" + ffmpeg_ss_param + " -i '" + video_path_escaped + "'" + ffmpeg_t_param +
-    " -vf blackdetect=d=0:pic_th=0.98:pix_th=0.10 -an -f null - *>&1 | " +
+    " -vf " + vfParam + " -an -f null - *>&1 | " +
     "ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath '" + log_file_path_escaped + "' -Encoding UTF8\"\n");
   temp_bat.close();
 
@@ -110,9 +137,9 @@ for (var i = 0; i < selectedLayers.length; i++) {
       try {
         var markerProp = layer.property("Marker");
         if (markerProp) {
-          markerProp.setValueAtTime(markerStartTime, new MarkerValue("BLACK START"));
+          markerProp.setValueAtTime(markerStartTime, new MarkerValue(MARKER_START_NAME));
           blackStartMarkers++;
-          markerProp.setValueAtTime(markerEndTime, new MarkerValue("BLACK END"));
+          markerProp.setValueAtTime(markerEndTime, new MarkerValue(MARKER_END_NAME));
           blackEndMarkers++;
         } else {
           alert("Не удалось установить маркеры на слое: " + layer.name);
@@ -134,11 +161,12 @@ app.endUndoGroup();
 
 // Вывод статистики
 var statsMessage = "Статистика обработки:\n\n";
+statsMessage += "Тип поиска: " + (searchWhite ? "Белое" : "Черное") + "\n";
 statsMessage += "Выбрано слоев пользователем: " + selectedLayers.length + "\n";
 statsMessage += "Обработано участков FFmpeg: " + processedSegments + "\n";
 statsMessage += "Общая длительность участков: " + totalDuration.toFixed(3) + " сек (" + formatTime(totalDuration) + ")\n";
-statsMessage += "Создано маркеров BLACK_START: " + blackStartMarkers + "\n";
-statsMessage += "Создано маркеров BLACK_END: " + blackEndMarkers;
+statsMessage += "Создано маркеров " + MARKER_START_NAME + ": " + blackStartMarkers + "\n";
+statsMessage += "Создано маркеров " + MARKER_END_NAME + ": " + blackEndMarkers;
 alert(statsMessage);
 
 // Функция форматирования времени
