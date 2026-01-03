@@ -95,7 +95,7 @@
     };
   }
 
-  function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name, use_enabled_clips_only) {
+  function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name, use_visible_clips_only) {
     var child_composition_layer = parent_composition.layer(child_composition_layer_name);
     if (!child_composition_layer || !(child_composition_layer.source instanceof CompItem)) {
       throw new Error("Указанный слой не является композицией: " + child_composition_layer_name);
@@ -110,7 +110,7 @@
 
       if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
         // Если use_enabled_clips_only = true, пропускаем невидимые слои (с выключенным "глазиком")
-        if (use_enabled_clips_only && !layer.enabled) continue;
+        if (use_visible_clips_only && !layer.enabled) continue;
 
         var clip_name = layer.name;
         var clip_start_time = Math.max(0, layer.inPoint);
