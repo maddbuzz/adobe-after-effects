@@ -1,187 +1,188 @@
-// --- инициализация первого окна ---
-function compute_forward_window_stats_init(control_property, work_start_time, work_total_frames, frame_duration, window_frame_count) {
-  var sum = 0;
-  var sum_count = 0;
-  var min_queue = [];
-  var max_queue = [];
+(function () {
 
-  const window_last_frame = window_frame_count - 1;
-  // формируем первое окно БЕЗ ПОСЛЕДНЕГО КАДРА
-  for (var frame = 0; frame < window_last_frame; frame++) {
-    var v = control_property.valueAtTime(work_start_time + frame * frame_duration, false);
-    sum += v;
-    sum_count++;
+  // --- инициализация первого окна ---
+  function compute_forward_window_stats_init(control_property, work_start_time, work_total_frames, frame_duration, window_frame_count) {
+    var sum = 0;
+    var sum_count = 0;
+    var min_queue = [];
+    var max_queue = [];
 
-    while (max_queue.length && max_queue[max_queue.length - 1].value <= v) max_queue.pop();
-    max_queue.push({ value: v, index: frame });
+    const window_last_frame = window_frame_count - 1;
+    // формируем первое окно БЕЗ ПОСЛЕДНЕГО КАДРА
+    for (var frame = 0; frame < window_last_frame; frame++) {
+      var v = control_property.valueAtTime(work_start_time + frame * frame_duration, false);
+      sum += v;
+      sum_count++;
 
-    while (min_queue.length && min_queue[min_queue.length - 1].value >= v) min_queue.pop();
-    min_queue.push({ value: v, index: frame });
-  }
+      while (max_queue.length && max_queue[max_queue.length - 1].value <= v) max_queue.pop();
+      max_queue.push({ value: v, index: frame });
 
-  return {
-    current_value: undefined,
-    sum: sum,
-    sum_count: sum_count,
-    min_queue: min_queue,
-    max_queue: max_queue,
-    window_frame_count: window_frame_count,
-    work_start_time: work_start_time,
-    frame_duration: frame_duration,
-    work_total_frames: work_total_frames
-  };
-}
-
-function compute_forward_window_stats_step(state, control_property, work_frame_index) {
-  var window_frame_count = state.window_frame_count;
-  var sum = state.sum;
-  var sum_count = state.sum_count;
-  var min_queue = state.min_queue;
-  var max_queue = state.max_queue;
-  var work_start_time = state.work_start_time;
-  var work_total_frames = state.work_total_frames;
-  var frame_duration = state.frame_duration;
-
-  var window_first_frame = work_frame_index;
-  var window_last_frame = work_frame_index + window_frame_count - 1;
-  const is_full_window = window_last_frame < work_total_frames;
-
-  var prev_value = state.current_value;
-  state.current_value = control_property.valueAtTime(work_start_time + window_first_frame * frame_duration, false);
-
-  if (is_full_window) {
-    if (prev_value !== undefined) {
-      // убираеми левый кадр из окна
-      sum -= prev_value;
-      sum_count--;
+      while (min_queue.length && min_queue[min_queue.length - 1].value >= v) min_queue.pop();
+      min_queue.push({ value: v, index: frame });
     }
 
-    // добавляем правый кадр в окно
-    var new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
-    sum += new_value;
-    sum_count++;
-
-    // обновляем max очередь
-    while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
-    max_queue.push({ value: new_value, index: window_last_frame });
-    while (max_queue.length && max_queue[0].index < window_first_frame) max_queue.shift();
-
-    // обновляем min очередь
-    while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
-    min_queue.push({ value: new_value, index: window_last_frame });
-    while (min_queue.length && min_queue[0].index < window_first_frame) min_queue.shift();
-
-    state.sum = sum;
-    state.sum_count = sum_count;
-    state.min_queue = min_queue;
-    state.max_queue = max_queue;
-
-    if (sum_count !== window_frame_count) throw new Error("sum_count !== window_frame_count" + sum_count + " vs " + window_frame_count);
-
-    state.last_full_window_stats = {
-      avg: sum / sum_count,
-      min: min_queue[0].value,
-      max: max_queue[0].value,
+    return {
+      current_value: undefined,
+      sum: sum,
+      sum_count: sum_count,
+      min_queue: min_queue,
+      max_queue: max_queue,
+      window_frame_count: window_frame_count,
+      work_start_time: work_start_time,
+      frame_duration: frame_duration,
+      work_total_frames: work_total_frames
     };
   }
 
-  // для неполного окна вернется последнее полное окно
-  return {
-    avg: state.last_full_window_stats.avg,
-    min: state.last_full_window_stats.min,
-    max: state.last_full_window_stats.max,
-    current_value: state.current_value,
-  };
-}
+  function compute_forward_window_stats_step(state, control_property, work_frame_index) {
+    var window_frame_count = state.window_frame_count;
+    var sum = state.sum;
+    var sum_count = state.sum_count;
+    var min_queue = state.min_queue;
+    var max_queue = state.max_queue;
+    var work_start_time = state.work_start_time;
+    var work_total_frames = state.work_total_frames;
+    var frame_duration = state.frame_duration;
 
-function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name) {
-  var child_composition_layer = parent_composition.layer(child_composition_layer_name);
-  if (!child_composition_layer || !(child_composition_layer.source instanceof CompItem)) {
-    throw new Error("Указанный слой не является композицией: " + child_composition_layer_name);
-  }
+    var window_first_frame = work_frame_index;
+    var window_last_frame = work_frame_index + window_frame_count - 1;
+    const is_full_window = window_last_frame < work_total_frames;
 
-  var child_composition = child_composition_layer.source;
-  var result = [];
+    var prev_value = state.current_value;
+    state.current_value = control_property.valueAtTime(work_start_time + window_first_frame * frame_duration, false);
 
-  // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
-  for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
-    var layer = child_composition.layer(layer_index);
+    if (is_full_window) {
+      if (prev_value !== undefined) {
+        // убираеми левый кадр из окна
+        sum -= prev_value;
+        sum_count--;
+      }
 
-    if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
-      var clip_name = layer.name;
-      var clip_start_time = Math.max(0, layer.inPoint);
-      var clip_end_time = Math.max(0, layer.outPoint);
+      // добавляем правый кадр в окно
+      var new_value = control_property.valueAtTime(work_start_time + window_last_frame * frame_duration, false);
+      sum += new_value;
+      sum_count++;
 
-      result.push({
-        // clip_name: clip_name,
-        clip_start_time: clip_start_time,
-        clip_end_time: clip_end_time,
-      });
+      // обновляем max очередь
+      while (max_queue.length && max_queue[max_queue.length - 1].value <= new_value) max_queue.pop();
+      max_queue.push({ value: new_value, index: window_last_frame });
+      while (max_queue.length && max_queue[0].index < window_first_frame) max_queue.shift();
+
+      // обновляем min очередь
+      while (min_queue.length && min_queue[min_queue.length - 1].value >= new_value) min_queue.pop();
+      min_queue.push({ value: new_value, index: window_last_frame });
+      while (min_queue.length && min_queue[0].index < window_first_frame) min_queue.shift();
+
+      state.sum = sum;
+      state.sum_count = sum_count;
+      state.min_queue = min_queue;
+      state.max_queue = max_queue;
+
+      if (sum_count !== window_frame_count) throw new Error("sum_count !== window_frame_count" + sum_count + " vs " + window_frame_count);
+
+      state.last_full_window_stats = {
+        avg: sum / sum_count,
+        min: min_queue[0].value,
+        max: max_queue[0].value,
+      };
     }
+
+    // для неполного окна вернется последнее полное окно
+    return {
+      avg: state.last_full_window_stats.avg,
+      min: state.last_full_window_stats.min,
+      max: state.last_full_window_stats.max,
+      current_value: state.current_value,
+    };
   }
 
-  return result;
-}
-
-function get_ADSR_amplitude(time, activation_time, deactivation_time, is_active, attack, delay, sustain_level, release) {
-  if (activation_time === null) return 0;
-  if (time - activation_time < attack) return lerp(0, 1, (time - activation_time) / attack);
-  else if (time - activation_time - attack < delay) return lerp(1, sustain_level, (time - activation_time - attack) / delay);
-  else if (is_active) return sustain_level;
-  else if (time - deactivation_time < release) return lerp(sustain_level, 0, (time - deactivation_time) / release);
-  else return 0;
-}
-
-function getBaseLog(x, y) {
-  return Math.log(y) / Math.log(x);
-}
-
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
-function getRandomInRange(start_inclusive, end_exclusive) {
-  return lerp(start_inclusive, end_exclusive, Math.random());
-}
-
-function getRandomInt(max_exclusive) {
-  return Math.floor(Math.random() * max_exclusive);
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function fract_abs(num) {
-  return Math.abs(num % 1);
-}
-
-function fract(num) {
-  return num - Math.trunc(num);
-}
-
-function getCompByName(name) {
-  for (var i = 1; i <= app.project.numItems; i++) {
-    var it = app.project.item(i);
-    if (it instanceof CompItem && it.name === name) {
-      return it;
+  function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name) {
+    var child_composition_layer = parent_composition.layer(child_composition_layer_name);
+    if (!child_composition_layer || !(child_composition_layer.source instanceof CompItem)) {
+      throw new Error("Указанный слой не является композицией: " + child_composition_layer_name);
     }
-  }
-  return null;
-}
 
-function create_new_or_return_existing_control(layer, control_name, type, default_value) {
-  var effect = layer.effect(control_name);
-  if (!effect) {
-    var adbe_type = "ADBE " + type + " Control";
-    effect = layer.Effects.addProperty(adbe_type);
-    effect.name = control_name;
-    if (default_value !== undefined) effect.property(type).setValue(default_value);
-  }
-  return effect.property(type); // <- возвращаем property, а не effect - иначе setValuesAtTimes работать не будет!
-}
+    var child_composition = child_composition_layer.source;
+    var result = [];
 
-(function () {
+    // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
+    for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
+      var layer = child_composition.layer(layer_index);
+
+      if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
+        var clip_name = layer.name;
+        var clip_start_time = Math.max(0, layer.inPoint);
+        var clip_end_time = Math.max(0, layer.outPoint);
+
+        result.push({
+          // clip_name: clip_name,
+          clip_start_time: clip_start_time,
+          clip_end_time: clip_end_time,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  function get_ADSR_amplitude(time, activation_time, deactivation_time, is_active, attack, delay, sustain_level, release) {
+    if (activation_time === null) return 0;
+    if (time - activation_time < attack) return lerp(0, 1, (time - activation_time) / attack);
+    else if (time - activation_time - attack < delay) return lerp(1, sustain_level, (time - activation_time - attack) / delay);
+    else if (is_active) return sustain_level;
+    else if (time - deactivation_time < release) return lerp(sustain_level, 0, (time - deactivation_time) / release);
+    else return 0;
+  }
+
+  function getBaseLog(x, y) {
+    return Math.log(y) / Math.log(x);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function getRandomInRange(start_inclusive, end_exclusive) {
+    return lerp(start_inclusive, end_exclusive, Math.random());
+  }
+
+  function getRandomInt(max_exclusive) {
+    return Math.floor(Math.random() * max_exclusive);
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function fract_abs(num) {
+    return Math.abs(num % 1);
+  }
+
+  function fract(num) {
+    return num - Math.trunc(num);
+  }
+
+  function getCompByName(name) {
+    for (var i = 1; i <= app.project.numItems; i++) {
+      var it = app.project.item(i);
+      if (it instanceof CompItem && it.name === name) {
+        return it;
+      }
+    }
+    return null;
+  }
+
+  function create_new_or_return_existing_control(layer, control_name, type, default_value) {
+    var effect = layer.effect(control_name);
+    if (!effect) {
+      var adbe_type = "ADBE " + type + " Control";
+      effect = layer.Effects.addProperty(adbe_type);
+      effect.name = control_name;
+      if (default_value !== undefined) effect.property(type).setValue(default_value);
+    }
+    return effect.property(type); // <- возвращаем property, а не effect - иначе setValuesAtTimes работать не будет!
+  }
+
   const script_fullpath = $.fileName; // Возвращает полный путь текущего выполняемого скрипта
   const script_filename = File(script_fullpath).name; // имя файла
 
@@ -809,4 +810,5 @@ function create_new_or_return_existing_control(layer, control_name, type, defaul
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output
   );
+
 })();
