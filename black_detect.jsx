@@ -58,6 +58,9 @@
     throw new Error("Stopped by user");
   }
 
+  // Запись времени начала выполнения скрипта
+  var scriptStartTime = new Date().getTime();
+
   // Константы имен маркеров
   var MARKER_START_NAME = searchWhite ? "WHITE START" : "BLACK START";
   var MARKER_END_NAME = searchWhite ? "WHITE END" : "BLACK END";
@@ -181,6 +184,10 @@
 
   app.endUndoGroup();
 
+  // Вычисление времени работы скрипта
+  var scriptEndTime = new Date().getTime();
+  var scriptDuration = (scriptEndTime - scriptStartTime) / 1000; // в секундах
+
   // Вывод статистики
   var statsMessage = "Статистика обработки:\n\n";
   statsMessage += "Тип поиска: " + (searchWhite ? "Белое" : "Черное") + "\n";
@@ -188,6 +195,7 @@
   statsMessage += "Обработано участков FFmpeg: " + processedSegments + "\n";
   statsMessage += "Общая длительность участков: " + totalDuration.toFixed(3) + " сек (" + formatTime(totalDuration) + ")\n";
   statsMessage += "Создано маркеров " + MARKER_START_NAME + ": " + blackStartMarkers + "\n";
-  statsMessage += "Создано маркеров " + MARKER_END_NAME + ": " + blackEndMarkers;
+  statsMessage += "Создано маркеров " + MARKER_END_NAME + ": " + blackEndMarkers + "\n";
+  statsMessage += "Время работы скрипта: " + scriptDuration.toFixed(3) + " сек (" + formatTime(scriptDuration) + ")";
   alert(statsMessage);
 })();
