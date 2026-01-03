@@ -95,7 +95,7 @@
     };
   }
 
-  function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name, use_visible_clips_only) {
+  function get_video_clips_start_end_times_in_composition(parent_composition, child_composition_layer_name) {
     var child_composition_layer = parent_composition.layer(child_composition_layer_name);
     if (!child_composition_layer || !(child_composition_layer.source instanceof CompItem)) {
       throw new Error("Указанный слой не является композицией: " + child_composition_layer_name);
@@ -103,14 +103,18 @@
 
     var child_composition = child_composition_layer.source;
     var result = [];
+    var skipped_disabled_layers_count = 0;
 
     // for (var layer_index = 1; layer_index <= child_composition.numLayers; layer_index++) {
     for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
       var layer = child_composition.layer(layer_index);
 
       if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
-        // Если use_enabled_clips_only = true, пропускаем невидимые слои (с выключенным "глазиком")
-        if (use_visible_clips_only && !layer.enabled) continue;
+        // пропускаем невидимые слои (с выключенным "глазиком")
+        if (!layer.enabled) {
+          skipped_disabled_layers_count++;
+          continue;
+        }
 
         var clip_name = layer.name;
         var clip_start_time = Math.max(0, layer.inPoint);
@@ -124,6 +128,7 @@
       }
     }
 
+    if (skipped_disabled_layers_count) alert("Пропущено выключенных слоев: " + skipped_disabled_layers_count);
     return result;
   }
 
@@ -236,7 +241,6 @@
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
   // create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
-  create_new_or_return_existing_control(beat_layer, "USE_VISIBLE_CLIPS_ONLY", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
@@ -262,7 +266,6 @@
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   // const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
-  const USE_VISIBLE_CLIPS_ONLY = beat_layer.effect("USE_VISIBLE_CLIPS_ONLY")("Checkbox").value;
   const POINTERS_LEFT_TO_STOP = beat_layer.effect("POINTERS_LEFT_TO_STOP")("Slider").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
@@ -356,7 +359,7 @@
     return pointers;
   }
 
-  const video_clips_times = get_video_clips_start_end_times_in_composition(beatComp, "composition_video", USE_VISIBLE_CLIPS_ONLY);
+  const video_clips_times = get_video_clips_start_end_times_in_composition(beatComp, "composition_video");
   // alert(JSON.stringify(video_clips_times));
 
   var get_pointers_called = 0;
@@ -787,7 +790,6 @@
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     // "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
-    "USE_VISIBLE_CLIPS_ONLY = " + USE_VISIBLE_CLIPS_ONLY + "\n" +
     (!USE_WORKAREA_INSTEAD_OF_CLIPS ? "USED_CLIPS_COUNT = " + video_clips_times.length + "\n" : "") +
     "POINTERS_LEFT_TO_STOP = " + POINTERS_LEFT_TO_STOP + "\n" +
     stopped_at_message +
