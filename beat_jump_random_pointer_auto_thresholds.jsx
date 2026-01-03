@@ -561,10 +561,10 @@
         }
       }
 
-      // if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
-      //   opacity = 100;
-      //   time_to_revert_opacity = null;
-      // }
+      if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
+        opacity = 100;
+        time_to_revert_opacity = null;
+      }
 
       if (FX_triggered) {
         if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
@@ -583,7 +583,7 @@
         // effect_number = (prev_effect_number + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_number]++;
 
-        // if (effect_number !== 1 && effect_number !== 2) opacity = 100;
+        if (effect_number !== 1 && effect_number !== 2) opacity = 100;
 
         if (effect_number === 0) { // horizontal inversion
           hue += 0.5;
@@ -597,16 +597,15 @@
           time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_number === 2) { // opacity
-          // time_to_revert_opacity = null;
-          // if (prev_effect_number === 2 && opacity !== 50) throw new Error("Effect #" + effect_number + " error: prev_effect_number === 2 && opacity !== 50 (" + opacity + ")");
-          // if (opacity === 100) opacity = 50;
-          // else if (opacity === 50) opacity = 0;
-          // else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
+          time_to_revert_opacity = null;
           if (opacity === 100) opacity = 66;
-          else if (opacity === 66) opacity = 0;
-          else if (opacity === 0) opacity = 33;
-          else if (opacity === 33) opacity = 100;
+          else if (opacity === 66) opacity = 33;
           else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
+          // if (opacity === 100) opacity = 66;
+          // else if (opacity === 66) opacity = 0;
+          // else if (opacity === 0) opacity = 33;
+          // else if (opacity === 33) opacity = 100;
+          // else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
         }
         else if (effect_number === 3) { // jump in time
           var prev_pointer_index = pointer_index;
