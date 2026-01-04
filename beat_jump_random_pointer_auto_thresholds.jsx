@@ -598,8 +598,8 @@
         }
         else if (effect_number === 2) { // opacity
           time_to_revert_opacity = null;
-          if (opacity === 100) opacity = 66;
-          else if (opacity === 66) opacity = 33;
+          if (opacity === 100) opacity = 50;
+          else if (opacity === 50) opacity = 0;
           else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
           // if (opacity === 100) opacity = 66;
           // else if (opacity === 66) opacity = 0;
@@ -802,12 +802,12 @@
     "pointers_number_after = " + pointers_number_after + "\n" +
     "unique_accumulated_time_minutes = " + unique_accumulated_time_minutes + "\n" +
     "unique_accumulated_time / video_duration = " + unique_accumulated_time_minutes / video_duration_minutes + "\n" +
+    "video_duration_minutes = " + video_duration_minutes + "\n" +
+    "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
     "unique_to_total_ratio = " + unique_to_total_ratio + "\n" +
     "total_accumulated_time_minutes = " + total_accumulated_time_minutes + "\n" +
     "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
     "total_accumulated_time / processed_duration = " + total_accumulated_time_minutes / processed_duration_minutes + "\n" +
-    "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
-    "video_duration_minutes = " + video_duration_minutes + "\n" +
     "processed_duration / video_duration = " + processed_duration_minutes / video_duration_minutes + "\n" +
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
