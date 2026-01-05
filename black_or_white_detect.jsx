@@ -25,17 +25,20 @@
   // Проверка существования FFmpeg
   var ffmpegFile = new File(FFMPEG_PATH);
   if (!ffmpegFile.exists) {
-    throw new Error("FFmpeg не найден по пути: " + FFMPEG_PATH);
+    alert("FFmpeg не найден по пути: " + FFMPEG_PATH);
+    return;
   }
 
   var comp = app.project.activeItem;
   if (!(comp instanceof CompItem)) {
-    throw new Error("Активная композиция не выбрана");
+    alert("Активная композиция не выбрана");
+    return;
   }
 
   var selectedLayers = comp.selectedLayers;
   if (selectedLayers.length === 0) {
-    throw new Error("Не выбрано ни одного слоя");
+    alert("Не выбрано ни одного слоя");
+    return;
   }
 
   // Выбор типа поиска: черное или белое
@@ -55,7 +58,8 @@
   var dialogResult = dialog.show();
   if (dialogResult !== 1) {
     // Диалог закрыт крестиком, останавливаем выполнение скрипта
-    throw new Error("Stopped by user");
+    alert("Stopped by user");
+    return;
   }
 
   // Запись времени начала выполнения скрипта
@@ -68,10 +72,10 @@
   // Статистика
   var processedSegments = 0;
   var totalDuration = 0;
-  var blackStartMarkers = 0;
-  var blackEndMarkers = 0;
+  var startMarkers = 0;
+  var endMarkers = 0;
 
-  app.beginUndoGroup("Black markers");
+  app.beginUndoGroup(searchWhite ? "White markers" : "Black markers");
 
   for (var i = 0; i < selectedLayers.length; i++) {
     var layer = selectedLayers[i];
@@ -161,15 +165,14 @@
 
         try {
           var markerProp = layer.property("Marker");
-          if (markerProp) {
-            markerProp.setValueAtTime(markerStartTime, new MarkerValue(MARKER_START_NAME));
-            blackStartMarkers++;
-            markerProp.setValueAtTime(markerEndTime, new MarkerValue(MARKER_END_NAME));
-            blackEndMarkers++;
-          } else {
+          if (!markerProp) {
             alert("Не удалось установить маркеры на слое: " + layer.name);
             break;
           }
+          markerProp.setValueAtTime(markerStartTime, new MarkerValue(MARKER_START_NAME));
+          startMarkers++;
+          markerProp.setValueAtTime(markerEndTime, new MarkerValue(MARKER_END_NAME));
+          endMarkers++;
         } catch (e2) {
           alert("Ошибка при установке маркера на слое " + layer.name + " в момент " + markerStartTime + ":\n" + e2.toString());
           break;
@@ -194,8 +197,8 @@
   statsMessage += "Выбрано слоев пользователем: " + selectedLayers.length + "\n";
   statsMessage += "Обработано участков FFmpeg: " + processedSegments + "\n";
   statsMessage += "Общая длительность участков: " + totalDuration.toFixed(3) + " сек (" + formatTime(totalDuration) + ")\n";
-  statsMessage += "Создано маркеров " + MARKER_START_NAME + ": " + blackStartMarkers + "\n";
-  statsMessage += "Создано маркеров " + MARKER_END_NAME + ": " + blackEndMarkers + "\n";
+  statsMessage += "Создано маркеров " + MARKER_START_NAME + ": " + startMarkers + "\n";
+  statsMessage += "Создано маркеров " + MARKER_END_NAME + ": " + endMarkers + "\n";
   statsMessage += "Время работы скрипта: " + scriptDuration.toFixed(3) + " сек (" + formatTime(scriptDuration) + ")";
   alert(statsMessage);
 })();
