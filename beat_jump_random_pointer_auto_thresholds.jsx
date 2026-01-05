@@ -759,10 +759,10 @@
     var n = i + 1;
     var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
     var start_time_formatted = formatTime(seq.start_time_seconds);
-    pointer_sequences_stats_lines.push(start_time_formatted + " " + n + ": " + length_minutes + "мин, " + seq.pointers_count + "ук");
+    pointer_sequences_stats_lines.push(start_time_formatted + " " + n + ": " + length_minutes + "мин, " + seq.pointers_count + "ук" + (i % 2 === 0 ? "\t" : "\n"));
   }
   var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0
-    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("\n") + "\n"
+    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("") + "\n"
     : "pointer_sequences_stats: (empty)\n";
 
   alert(
