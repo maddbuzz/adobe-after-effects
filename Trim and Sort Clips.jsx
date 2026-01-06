@@ -70,17 +70,19 @@
 
   create_control_if_not_exists(control_layer, "just_order_dont_trim", "Checkbox", true);
   create_control_if_not_exists(control_layer, "sort_by_name", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_size", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_order", "Checkbox", false);
   create_control_if_not_exists(control_layer, "rescale_to_fit", "Checkbox", true);
   create_control_if_not_exists(control_layer, "trim_start", "Slider", 1);
   create_control_if_not_exists(control_layer, "trim_end", "Slider", 4);
 
-  var just_order_dont_trim = get_control(control_layer, "just_order_dont_trim", "Checkbox").value;
-  var sort_by_name = get_control(control_layer, "sort_by_name", "Checkbox").value;
-  var reverse_order = get_control(control_layer, "reverse_order", "Checkbox").value;
-  var rescale_to_fit = get_control(control_layer, "rescale_to_fit", "Checkbox").value;
-  var trim_start = get_control(control_layer, "trim_start", "Slider").value;
-  var trim_end = get_control(control_layer, "trim_end", "Slider").value;
+  const just_order_dont_trim = get_control(control_layer, "just_order_dont_trim", "Checkbox").value;
+  const sort_by_name = get_control(control_layer, "sort_by_name", "Checkbox").value;
+  const sort_by_size = get_control(control_layer, "sort_by_size", "Checkbox").value;
+  const reverse_order = get_control(control_layer, "reverse_order", "Checkbox").value;
+  const rescale_to_fit = get_control(control_layer, "rescale_to_fit", "Checkbox").value;
+  const trim_start = get_control(control_layer, "trim_start", "Slider").value;
+  const trim_end = get_control(control_layer, "trim_end", "Slider").value;
 
   var target_layers = [];
   for (var i = 1; i <= composition.numLayers; i++) {
@@ -100,15 +102,30 @@
     return;
   }
 
-  if (sort_by_name) target_layers.sort(function (layer_a, layer_b) {
-    var name_a = layer_a.source.name.toLowerCase();
-    var name_b = layer_b.source.name.toLowerCase();
-    var result = 0;
-    if (name_a < name_b) result = -1;
-    if (name_a > name_b) result = +1;
-    if (reverse_order) return -result;
-    return result;
-  });
+  if (sort_by_name || sort_by_size) {
+    target_layers.sort(function (layer_a, layer_b) {
+      var result = 0;
+      
+      // Сортировка по имени (если включена)
+      if (sort_by_name) {
+        var name_a = layer_a.source.name.toLowerCase();
+        var name_b = layer_b.source.name.toLowerCase();
+        if (name_a < name_b) result = -1;
+        if (name_a > name_b) result = +1;
+      }
+      
+      // Если имена одинаковые (или сортировка по имени не включена), сортируем по размеру
+      if (result === 0 && sort_by_size) {
+        var duration_a = layer_a.source.duration * layer_a.stretch / 100;
+        var duration_b = layer_b.source.duration * layer_b.stretch / 100;
+        if (duration_a < duration_b) result = -1;
+        if (duration_a > duration_b) result = +1;
+      }
+      
+      if (reverse_order) return -result;
+      return result;
+    });
+  }
 
   var current_time = 0;
 
