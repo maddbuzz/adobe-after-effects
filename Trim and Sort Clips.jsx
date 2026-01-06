@@ -116,8 +116,8 @@
       
       // Если имена одинаковые (или сортировка по имени не включена), сортируем по размеру
       if (result === 0 && sort_by_size) {
-        var duration_a = layer_a.source.duration * layer_a.stretch / 100;
-        var duration_b = layer_b.source.duration * layer_b.stretch / 100;
+        var duration_a = layer_a.outPoint - layer_a.inPoint;
+        var duration_b = layer_b.outPoint - layer_b.inPoint;
         if (duration_a < duration_b) result = -1;
         if (duration_a > duration_b) result = +1;
       }
