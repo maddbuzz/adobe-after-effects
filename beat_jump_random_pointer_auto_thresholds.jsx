@@ -528,13 +528,13 @@
       current_position += time_increment * direction;
       if (current_position >= target_position) {
         current_position = target_position - frame_duration;
+        if (direction > 0) pointers[pointer_index].bounced_total++;
         pointers[pointer_index].direction = -1;
-        pointers[pointer_index].bounced_total++;
       }
       if (current_position <= starting_position) {
-        current_position = starting_position + frame_duration;
+        current_position = starting_position + frame_duration; // "+ frame_duration" потому что был случай, когда показывался при баунсе последний кадр предыдущего клипа в таймлайне
+        if (direction < 0) pointers[pointer_index].bounced_total++;
         pointers[pointer_index].direction = +1;
-        pointers[pointer_index].bounced_total++;
       }
       if (bounced_total_max < pointers[pointer_index].bounced_total) bounced_total_max = pointers[pointer_index].bounced_total;
       pointers[pointer_index].current_position = current_position;
