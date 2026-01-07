@@ -105,7 +105,7 @@
   if (sort_by_name || sort_by_size) {
     target_layers.sort(function (layer_a, layer_b) {
       var result = 0;
-      
+
       // Сортировка по имени (если включена)
       if (sort_by_name) {
         var name_a = layer_a.source.name.toLowerCase();
@@ -113,15 +113,22 @@
         if (name_a < name_b) result = -1;
         if (name_a > name_b) result = +1;
       }
-      
-      // Если имена одинаковые (или сортировка по имени не включена), сортируем по размеру
-      if (result === 0 && sort_by_size) {
-        var duration_a = layer_a.outPoint - layer_a.inPoint;
-        var duration_b = layer_b.outPoint - layer_b.inPoint;
-        if (duration_a < duration_b) result = -1;
-        if (duration_a > duration_b) result = +1;
+
+      // Если имена одинаковые (или сортировка по имени не включена), сортируем по размеру или по началу
+      if (result === 0) {
+        if (sort_by_size) { // сортируем по размеру
+          var duration_a = layer_a.outPoint - layer_a.inPoint;
+          var duration_b = layer_b.outPoint - layer_b.inPoint;
+          if (duration_a < duration_b) result = -1;
+          if (duration_a > duration_b) result = +1;
+        } else { // сортируем по смещению внутри слоя относительно начала файла
+          var offset_a = layer_a.inPoint - layer_a.startTime;
+          var offset_b = layer_b.inPoint - layer_b.startTime;
+          if (offset_a < offset_b) result = -1;
+          if (offset_a > offset_b) result = +1;
+        }
       }
-      
+
       if (reverse_order) return -result;
       return result;
     });
