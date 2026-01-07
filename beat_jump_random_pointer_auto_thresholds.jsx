@@ -304,7 +304,7 @@
         number: index_offset,
         starting_position: start,
         current_position: start,
-        target_position: end - frame_duration,
+        target_position: end,
         direction: +1,
         bounced_total: 0,
       });
@@ -319,7 +319,7 @@
       if (remaining < desired_length_seconds) {
         // Если оставшееся время меньше желаемой длины, добавляем его к последнему указателю
         var last_pointer = pointers[pointers.length - 1];
-        last_pointer.target_position = end - frame_duration;
+        last_pointer.target_position = end;
         break;
       }
 
@@ -327,7 +327,7 @@
         number: index + index_offset,
         starting_position: current_time,
         current_position: current_time,
-        target_position: current_time + desired_length_seconds - frame_duration,
+        target_position: current_time + desired_length_seconds,
         direction: +1,
         bounced_total: 0,
       });
@@ -526,13 +526,13 @@
       var direction = pointers[pointer_index].direction;
       var time_increment = frame_duration * speed_output;
       current_position += time_increment * direction;
-      if (current_position > target_position) {
-        current_position = target_position;
+      if (current_position >= target_position) {
+        current_position = target_position - frame_duration;
         pointers[pointer_index].direction = -1;
         pointers[pointer_index].bounced_total++;
       }
-      if (current_position < starting_position) {
-        current_position = starting_position;
+      if (current_position <= starting_position) {
+        current_position = starting_position + frame_duration;
         pointers[pointer_index].direction = +1;
         pointers[pointer_index].bounced_total++;
       }
