@@ -410,6 +410,7 @@
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
+  var bounced_total_max_time = null;
 
   var unique_accumulated_time = 0;
   var total_accumulated_time = 0;
@@ -536,7 +537,10 @@
         if (direction < 0) pointers[pointer_index].bounced_total++;
         pointers[pointer_index].direction = +1;
       }
-      if (bounced_total_max < pointers[pointer_index].bounced_total) bounced_total_max = pointers[pointer_index].bounced_total;
+      if (bounced_total_max < pointers[pointer_index].bounced_total) {
+        bounced_total_max = pointers[pointer_index].bounced_total;
+        bounced_total_max_time = time;
+      }
       pointers[pointer_index].current_position = current_position;
 
       var position_diff = Math.abs(current_position - old_current_position);
@@ -794,6 +798,7 @@
     "POINTERS_LEFT_TO_STOP = " + POINTERS_LEFT_TO_STOP + "\n" +
     stopped_at_message +
     "bounced_total_max = " + bounced_total_max + "\n" +
+    (bounced_total_max_time !== null ? "bounced_total_max_time = " + formatTime(bounced_total_max_time) + "\n" : "") +
     "hue_drift = " + hue_drift + "\n" +
     "auto_correction_window = " + auto_correction_window + "\n" +
     "get_pointers_called = " + get_pointers_called + "\n" +
