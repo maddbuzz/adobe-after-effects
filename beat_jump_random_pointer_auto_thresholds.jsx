@@ -641,7 +641,10 @@
           pointer_index = spliced
             ? prev_pointer_index
             : prev_pointer_index + 1;
-          if (pointer_index >= pointers.length) {
+          var real_sequence_size = POINTERS_SUBSEQUENCE_SIZE > 0
+            ? Math.min(POINTERS_SUBSEQUENCE_SIZE, pointers.length)
+            : pointers.length;
+          if (pointer_index >= real_sequence_size) {
             do {
               randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE);
               pointer_index = 0;
