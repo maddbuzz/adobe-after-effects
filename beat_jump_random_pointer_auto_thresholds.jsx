@@ -370,8 +370,9 @@
     else return get_even_pointers(video_start_time, video_end_time, desired_pointer_length_seconds, 0);
   }
 
-  function fisher_yates_shuffle(array, shuffle_size = 0) {
-    // Алгоритм Фишера-Йетса для случайной перетасовки массива
+  // Алгоритм Фишера-Йетса для случайной перетасовки массива
+  function fisher_yates_shuffle(array, shuffle_size) {
+    if (shuffle_size === undefined) shuffle_size = 0; // В ExtendScript (ES3) значения по умолчанию в параметрах функций не поддерживаются
     // Если shuffle_size > 0 и меньше длины массива, тасует только первые shuffle_size элементов
     var size_to_shuffle = (shuffle_size > 0 && shuffle_size < array.length) ? shuffle_size : array.length;
     for (var i = size_to_shuffle - 1; i > 0; i--) {
@@ -384,7 +385,8 @@
   }
 
   var randomize_pointers_called = 0;
-  function randomize_pointers(pointers, shuffle_size = 0) {
+  function randomize_pointers(pointers, shuffle_size) {
+    if (shuffle_size === undefined) shuffle_size = 0; // В ExtendScript (ES3) значения по умолчанию в параметрах функций не поддерживаются
     randomize_pointers_called++;
     fisher_yates_shuffle(pointers, shuffle_size);
     return pointers;
