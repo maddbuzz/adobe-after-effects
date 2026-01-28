@@ -239,6 +239,8 @@
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_pos_max", "Slider", +10.0);
   create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "STOP_AFTER_FULL_SEQUENCES", "Slider", 0);
+  create_new_or_return_existing_control(beat_layer, "RANDOMIZE_FULL_SEQUENCE_BEFORE_START", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "POINTERS_SUBSEQUENCE_SIZE", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
   // create_new_or_return_existing_control(beat_layer, "time_remap_fixed_pointers_order", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
@@ -264,6 +266,8 @@
   const S_WarpFishEye_Amount_pos_max = beat_layer.effect("S_WarpFishEye_Amount_pos_max")("Slider").value;
   const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
   const STOP_AFTER_FULL_SEQUENCES = beat_layer.effect("STOP_AFTER_FULL_SEQUENCES")("Slider").value;
+  const RANDOMIZE_FULL_SEQUENCE_BEFORE_START = beat_layer.effect("RANDOMIZE_FULL_SEQUENCE_BEFORE_START")("Checkbox").value;
+  const POINTERS_SUBSEQUENCE_SIZE = beat_layer.effect("POINTERS_SUBSEQUENCE_SIZE")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   // const time_remap_fixed_pointers_order = beat_layer.effect("time_remap_fixed_pointers_order")("Checkbox").value;
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
@@ -370,15 +374,24 @@
     else return get_even_pointers(video_start_time, video_end_time, desired_pointer_length_seconds, 0);
   }
 
-  function fisher_yates_shuffle(array) {
+  function fisher_yates_shuffle(array, shuffle_size = 0) {
     // Алгоритм Фишера-Йетса для случайной перетасовки массива
-    for (var i = array.length - 1; i > 0; i--) {
+    // Если shuffle_size > 0 и меньше длины массива, тасует только первые shuffle_size элементов
+    var size_to_shuffle = (shuffle_size > 0 && shuffle_size < array.length) ? shuffle_size : array.length;
+    for (var i = size_to_shuffle - 1; i > 0; i--) {
       var j = getRandomInt(i + 1); // j от 0 до i включительно (правильный Фишер-Йетс)
       var temp = array[i];
       array[i] = array[j];
       array[j] = temp;
     }
     return array;
+  }
+
+  var randomize_pointers_called = 0;
+  function randomize_pointers(pointers, shuffle_size = 0) {
+    randomize_pointers_called++;
+    fisher_yates_shuffle(pointers, shuffle_size);
+    return pointers;
   }
 
   function get_random_permutation(last) {
@@ -390,18 +403,13 @@
     return fisher_yates_shuffle(array);
   }
 
-  var randomize_pointers_called = 0;
-  function randomize_pointers(pointers) {
-    randomize_pointers_called++;
-    fisher_yates_shuffle(pointers);
-    return pointers;
-  }
-
   var pointers = get_pointers();
   var zero_element = pointers.shift(); // убираем нулевой элемент
-  randomize_pointers(pointers);
+  if (RANDOMIZE_FULL_SEQUENCE_BEFORE_START) randomize_pointers(pointers);
+  else randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE - 1); // без нулевого элемента !!!
   pointers.unshift(zero_element); // возвращаем нулевой элемент обратно
   var pointer_index = 0; // getRandomInt(pointers.length);
+
   var pointer_sequences_stats = [{
     start_time_seconds: work_start_time,
     duration_minutes: -1,
@@ -628,9 +636,9 @@
             time_processing_stopped_at = time;
             break;
           }
-          if (pointers.length === 0) {
+          if (pointers.length === 0) { // нужно ли это?
             pointers = get_pointers();
-            randomize_pointers(pointers);
+            randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE);
             pointer_index = 0;
           }
 
@@ -638,8 +646,10 @@
             ? prev_pointer_index
             : prev_pointer_index + 1;
           if (pointer_index >= pointers.length) {
-            randomize_pointers(pointers);
-            pointer_index = 0;
+            do {
+              randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE);
+              pointer_index = 0;
+            } while (pointers.length > 1 && pointers[pointer_index].number === prev_pointer_number);
 
             pointer_sequences_stats[pointer_sequences_stats.length - 1].duration_minutes = (time - pointer_sequences_stats[pointer_sequences_stats.length - 1].start_time_seconds) / 60;
             pointer_sequences_stats.push({
@@ -653,7 +663,7 @@
             break;
           }
 
-          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75); // не нужно уже
           else hue = getRandomInRange(0, 1);
 
           current_position = pointers[pointer_index].current_position;
@@ -791,6 +801,8 @@
     "S_WarpFishEye_Amount_pos_max = " + S_WarpFishEye_Amount_pos_max + "\n" +
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
     "STOP_AFTER_FULL_SEQUENCES = " + STOP_AFTER_FULL_SEQUENCES + "\n" +
+    "RANDOMIZE_FULL_SEQUENCE_BEFORE_START = " + RANDOMIZE_FULL_SEQUENCE_BEFORE_START + "\n" +
+    "POINTERS_SUBSEQUENCE_SIZE = " + POINTERS_SUBSEQUENCE_SIZE + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     // "time_remap_fixed_pointers_order = " + time_remap_fixed_pointers_order + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
