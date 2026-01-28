@@ -632,7 +632,7 @@
             time_processing_stopped_at = time;
             break;
           }
-          if (pointers.length === 0) { // нужно ли это?
+          if (pointers.length === 0) {
             pointers = get_pointers();
             randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE);
             pointer_index = 0;
@@ -659,7 +659,7 @@
             break;
           }
 
-          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75); // не нужно уже
+          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
           else hue = getRandomInRange(0, 1);
 
           current_position = pointers[pointer_index].current_position;
