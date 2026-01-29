@@ -226,7 +226,7 @@
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
+  create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.666); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -237,9 +237,9 @@
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
-  create_new_or_return_existing_control(beat_layer, "STOP_AFTER_FULL_SEQUENCES", "Slider", 0);
-  create_new_or_return_existing_control(beat_layer, "RANDOMIZE_FULL_SEQUENCE_BEFORE_START", "Checkbox", true);
-  create_new_or_return_existing_control(beat_layer, "POINTERS_SUBSEQUENCE_SIZE", "Slider", 0);
+  create_new_or_return_existing_control(beat_layer, "RANDOMIZE_POINTERS_BEFORE_START", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 15); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
+  create_new_or_return_existing_control(beat_layer, "STOP_AFTER_SEQUENCES", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
@@ -262,9 +262,9 @@
   const speed_min = beat_layer.effect("speed_min")("Slider").value;
   const S_WarpFishEye_Amount_neg_max = beat_layer.effect("S_WarpFishEye_Amount_neg_max")("Slider").value;
   const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
-  const STOP_AFTER_FULL_SEQUENCES = beat_layer.effect("STOP_AFTER_FULL_SEQUENCES")("Slider").value;
-  const RANDOMIZE_FULL_SEQUENCE_BEFORE_START = beat_layer.effect("RANDOMIZE_FULL_SEQUENCE_BEFORE_START")("Checkbox").value;
-  const POINTERS_SUBSEQUENCE_SIZE = beat_layer.effect("POINTERS_SUBSEQUENCE_SIZE")("Slider").value;
+  const RANDOMIZE_POINTERS_BEFORE_START = beat_layer.effect("RANDOMIZE_POINTERS_BEFORE_START")("Checkbox").value;
+  const POINTERS_SEQUENCE_SIZE = beat_layer.effect("POINTERS_SEQUENCE_SIZE")("Slider").value;
+  const STOP_AFTER_SEQUENCES = beat_layer.effect("STOP_AFTER_SEQUENCES")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
   const POINTERS_LEFT_TO_STOP = beat_layer.effect("POINTERS_LEFT_TO_STOP")("Slider").value;
@@ -403,8 +403,8 @@
 
   var pointers = get_pointers();
   var zero_element = pointers.shift(); // убираем нулевой элемент
-  if (RANDOMIZE_FULL_SEQUENCE_BEFORE_START) randomize_pointers(pointers);
-  else randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE - 1); // без нулевого элемента !!!
+  if (RANDOMIZE_POINTERS_BEFORE_START) randomize_pointers(pointers);
+  else randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE - 1); // без нулевого элемента !!!
   pointers.unshift(zero_element); // возвращаем нулевой элемент обратно
   var pointer_index = 0; // getRandomInt(pointers.length);
 
@@ -636,19 +636,19 @@
           }
           if (pointers.length === 0) {
             pointers = get_pointers();
-            randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE);
+            randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
             pointer_index = 0;
           }
 
           pointer_index = spliced
             ? prev_pointer_index
             : prev_pointer_index + 1;
-          var real_sequence_size = POINTERS_SUBSEQUENCE_SIZE > 0
-            ? Math.min(POINTERS_SUBSEQUENCE_SIZE, pointers.length)
+          var real_sequence_size = POINTERS_SEQUENCE_SIZE > 0
+            ? Math.min(POINTERS_SEQUENCE_SIZE, pointers.length)
             : pointers.length;
           if (pointer_index >= real_sequence_size) {
             do {
-              randomize_pointers(pointers, POINTERS_SUBSEQUENCE_SIZE);
+              randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
               pointer_index = 0;
             } while (pointers.length > 1 && pointers[pointer_index].number === prev_pointer_number);
 
@@ -659,7 +659,7 @@
               pointers_count: pointers.length,
             });
           }
-          if (STOP_AFTER_FULL_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_FULL_SEQUENCES) {
+          if (STOP_AFTER_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_SEQUENCES) {
             time_processing_stopped_at = time;
             break;
           }
@@ -800,9 +800,9 @@
     "speed_min = " + speed_min + "\n" +
     "S_WarpFishEye_Amount_neg_max = " + S_WarpFishEye_Amount_neg_max + "\n" +
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
-    "STOP_AFTER_FULL_SEQUENCES = " + STOP_AFTER_FULL_SEQUENCES + "\n" +
-    "RANDOMIZE_FULL_SEQUENCE_BEFORE_START = " + RANDOMIZE_FULL_SEQUENCE_BEFORE_START + "\n" +
-    "POINTERS_SUBSEQUENCE_SIZE = " + POINTERS_SUBSEQUENCE_SIZE + "\n" +
+    "RANDOMIZE_POINTERS_BEFORE_START = " + RANDOMIZE_POINTERS_BEFORE_START + "\n" +
+    "POINTERS_SEQUENCE_SIZE = " + POINTERS_SEQUENCE_SIZE + "\n" +
+    "STOP_AFTER_SEQUENCES = " + STOP_AFTER_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
     (!USE_WORKAREA_INSTEAD_OF_CLIPS ? "USED_CLIPS_COUNT = " + video_clips_times.length + "\n" : "") +
