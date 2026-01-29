@@ -5,7 +5,18 @@
   var message =
     "Это скрипт\n\n" +
     script_filename + "\n\n" +
-    "(trim_start и trim_end применяются после Time Stretch)\n\n" +
+    "Контролы на слое 'script_controls':\n\n" +
+    "• trim_clips - обрезать клипы и после переупорядочить на таймлайне\n" +
+    "  (если выключен - только переупорядочить)\n\n" +
+    "Сортировка (каскадная, применяется последовательно):\n" +
+    "• sort_by_source_name - сначала по имени исходного файла\n" +
+    "• sort_by_source_offset - затем по смещению внутри слоя относительно начала файла (если имена одинаковые или сортировка по имени выключена)\n" +
+    "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если смещения одинаковые или сортировка по смещению выключена)\n" +
+    "• reverse_sort_order - обратить итоговый порядок сортировки\n\n" +
+    "• scale_to_fit_comp - масштабировать слои для вписывания в композицию\n\n" +
+    "• trim_start_seconds - обрезать начало каждого слоя (секунды)\n\n" +
+    "• trim_end_seconds - обрезать конец каждого слоя (секунды)\n" +
+    "  (оба применяются при включенном trim_clips, обрезка происходит после Time Stretch)\n\n" +
     "Хотите продолжить?";
   var proceed = confirm(message);
   if (!proceed) return;
@@ -68,21 +79,23 @@
     return effect.property(type);
   }
 
-  create_control_if_not_exists(control_layer, "just_order_dont_trim", "Checkbox", true);
-  create_control_if_not_exists(control_layer, "sort_by_name", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_size", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "reverse_order", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "rescale_to_fit", "Checkbox", true);
-  create_control_if_not_exists(control_layer, "trim_start", "Slider", 1);
-  create_control_if_not_exists(control_layer, "trim_end", "Slider", 4);
+  create_control_if_not_exists(control_layer, "trim_clips", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_source_offset", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "reverse_sort_order", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "scale_to_fit_comp", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "trim_start_seconds", "Slider", 1);
+  create_control_if_not_exists(control_layer, "trim_end_seconds", "Slider", 4);
 
-  const just_order_dont_trim = get_control(control_layer, "just_order_dont_trim", "Checkbox").value;
-  const sort_by_name = get_control(control_layer, "sort_by_name", "Checkbox").value;
-  const sort_by_size = get_control(control_layer, "sort_by_size", "Checkbox").value;
-  const reverse_order = get_control(control_layer, "reverse_order", "Checkbox").value;
-  const rescale_to_fit = get_control(control_layer, "rescale_to_fit", "Checkbox").value;
-  const trim_start = get_control(control_layer, "trim_start", "Slider").value;
-  const trim_end = get_control(control_layer, "trim_end", "Slider").value;
+  const trim_clips = get_control(control_layer, "trim_clips", "Checkbox").value;
+  const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
+  const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
+  const sort_by_source_offset = get_control(control_layer, "sort_by_source_offset", "Checkbox").value;
+  const reverse_sort_order = get_control(control_layer, "reverse_sort_order", "Checkbox").value;
+  const scale_to_fit_comp = get_control(control_layer, "scale_to_fit_comp", "Checkbox").value;
+  const trim_start_seconds = get_control(control_layer, "trim_start_seconds", "Slider").value;
+  const trim_end_seconds = get_control(control_layer, "trim_end_seconds", "Slider").value;
 
   var target_layers = [];
   for (var i = 1; i <= composition.numLayers; i++) {
@@ -102,34 +115,35 @@
     return;
   }
 
-  if (sort_by_name || sort_by_size) {
+  if (sort_by_source_name || sort_by_layer_duration || sort_by_source_offset) {
     target_layers.sort(function (layer_a, layer_b) {
       var result = 0;
 
       // Сортировка по имени (если включена)
-      if (sort_by_name) {
+      if (sort_by_source_name) {
         var name_a = layer_a.source.name.toLowerCase();
         var name_b = layer_b.source.name.toLowerCase();
         if (name_a < name_b) result = -1;
         if (name_a > name_b) result = +1;
       }
 
-      // Если имена одинаковые (или сортировка по имени не включена), сортируем по размеру или по началу
+      // Вторичная сортировка: если имена одинаковые (или сортировка по имени не включена), применяем сортировку по смещению и/или по длительности
       if (result === 0) {
-        if (sort_by_size) { // сортируем по размеру
-          var duration_a = layer_a.outPoint - layer_a.inPoint;
-          var duration_b = layer_b.outPoint - layer_b.inPoint;
-          if (duration_a < duration_b) result = -1;
-          if (duration_a > duration_b) result = +1;
-        } else { // сортируем по смещению внутри слоя относительно начала файла
+        if (sort_by_source_offset) { // сортируем по смещению внутри слоя относительно начала файла
           var offset_a = layer_a.inPoint - layer_a.startTime;
           var offset_b = layer_b.inPoint - layer_b.startTime;
           if (offset_a < offset_b) result = -1;
           if (offset_a > offset_b) result = +1;
         }
+        if (result === 0 && sort_by_layer_duration) { // если смещения одинаковые (или сортировка по смещению не включена), сортируем по длительности слоя
+          var duration_a = layer_a.outPoint - layer_a.inPoint;
+          var duration_b = layer_b.outPoint - layer_b.inPoint;
+          if (duration_a < duration_b) result = -1;
+          if (duration_a > duration_b) result = +1;
+        }
       }
 
-      if (reverse_order) return -result;
+      if (reverse_sort_order) return -result;
       return result;
     });
   }
@@ -140,7 +154,7 @@
     var current_layer = target_layers[i];
 
     // Масштабирование: вписать целиком в композицию, сохранив пропорции
-    if (rescale_to_fit) {
+    if (scale_to_fit_comp && current_layer.hasVideo) {
       var src_width = current_layer.source.width;
       var src_height = current_layer.source.height;
       var comp_width = composition.width;
@@ -149,15 +163,23 @@
       var scale_y = (comp_height / src_height) * 100;
       var uniform_scale = Math.min(scale_x, scale_y);
       current_layer.property("Scale").setValue([uniform_scale, uniform_scale]);
-    };
+    }
 
-    if (!just_order_dont_trim) {
-      // var source_duration = current_layer.source.duration; // не учитывает Time Stretch
-      // var source_duration = current_layer.outPoint - current_layer.inPoint; // учитывает Time Stretch, но отрезать будет снова и снова при повторных запусках
-      var source_duration = current_layer.source.duration * current_layer.stretch / 100; // учитывает Time Stretch, но ?
+    if (trim_clips) {
+      // Вариант 1: source.duration - исходная длительность файла, НЕ учитывает Time Stretch
+      //   (если файл 10 сек, а Time Stretch = 200%, вернет 10 сек вместо 20)
+      // var source_duration = current_layer.source.duration;
+      
+      // Вариант 2: outPoint - inPoint - видимая длительность на таймлайне, учитывает Time Stretch
+      //   ПРОБЛЕМА: при повторных запусках обрезка применяется к уже обрезанному слою снова и снова
+      // var source_duration = current_layer.outPoint - current_layer.inPoint;
+      
+      // Вариант 3 (используется): расчет от исходной длительности с учетом Time Stretch
+      //   Всегда работает с исходной длительностью файла, не зависит от предыдущих запусков
+      var source_duration = current_layer.source.duration * current_layer.stretch / 100;
 
-      var source_in_time = trim_start;
-      var source_out_time = source_duration - trim_end;
+      var source_in_time = trim_start_seconds;
+      var source_out_time = source_duration - trim_end_seconds;
       if (source_out_time < source_in_time) source_out_time = source_in_time;
 
       var trimmed_duration = source_out_time - source_in_time;
