@@ -170,6 +170,41 @@
     return num - Math.trunc(num);
   }
 
+  function padTwoDigits(num) {
+    var n = Math.floor(num % 100);
+    return (n < 10 ? "0" : "") + n.toString();
+  }
+
+  function formatTime(seconds) {
+    var hours = Math.floor(seconds / 3600);
+    var minutes = Math.floor((seconds % 3600) / 60);
+    var secs = Math.floor(seconds % 60);
+    return padTwoDigits(hours) + ":" + padTwoDigits(minutes) + ":" + padTwoDigits(secs);
+  }
+
+  function showScrollableDialog(title, message) {
+    var win = new Window("dialog", title);
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    
+    var scrollGroup = win.add("group");
+    scrollGroup.orientation = "column";
+    scrollGroup.alignChildren = "fill";
+    scrollGroup.preferredSize.width = 600;
+    scrollGroup.preferredSize.height = 400;
+    
+    var textArea = scrollGroup.add("edittext", undefined, message, {multiline: true, scrolling: true, readonly: true});
+    textArea.preferredSize.width = 580;
+    textArea.preferredSize.height = 380;
+    
+    var buttonGroup = win.add("group");
+    buttonGroup.alignment = "center";
+    var okButton = buttonGroup.add("button", undefined, "OK");
+    okButton.onClick = function() { win.close(); };
+    
+    win.show();
+  }
+
   function getCompByName(name) {
     for (var i = 1; i <= app.project.numItems; i++) {
       var it = app.project.item(i);
@@ -412,6 +447,7 @@
     start_time_seconds: work_start_time,
     duration_minutes: -1,
     pointers_count: pointers.length,
+    real_sequence_size: POINTERS_SEQUENCE_SIZE,
   }];
   const pointers_number_before = pointers.length;
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
@@ -657,6 +693,7 @@
               start_time_seconds: time,
               duration_minutes: -1,
               pointers_count: pointers.length,
+              real_sequence_size: real_sequence_size,
             });
           }
           if (STOP_AFTER_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_SEQUENCES) {
@@ -758,29 +795,26 @@
   const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
 
   // Формируем построчный вывод последовательностей
-  function padTwoDigits(num) {
-    var n = Math.floor(num % 100);
-    return (n < 10 ? "0" : "") + n.toString();
-  }
-  function formatTime(seconds) {
-    var hours = Math.floor(seconds / 3600);
-    var minutes = Math.floor((seconds % 3600) / 60);
-    var secs = Math.floor(seconds % 60);
-    return padTwoDigits(hours) + ":" + padTwoDigits(minutes) + ":" + padTwoDigits(secs);
-  }
   var pointer_sequences_stats_lines = [];
+  var sum_duration = 0;
+  var count_valid = 0;
   for (var i = 0; i < pointer_sequences_stats.length; i++) {
     var seq = pointer_sequences_stats[i];
     var n = i + 1;
     var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
     var start_time_formatted = formatTime(seq.start_time_seconds);
-    pointer_sequences_stats_lines.push(start_time_formatted + " " + n + ": " + length_minutes + "мин, " + seq.pointers_count + "ук" + (i % 2 === 0 ? "\t" : "\n"));
+    pointer_sequences_stats_lines.push(start_time_formatted + " " + n + ": " + length_minutes + "мин, " + seq.real_sequence_size + "/" + seq.pointers_count + "ук\n");
+    if (seq.duration_minutes > 0) {
+      sum_duration += seq.duration_minutes;
+      count_valid++;
+    }
   }
+  var avg_duration = count_valid > 0 ? (sum_duration / count_valid).toFixed(1) : "0.0";
   var pointer_sequences_stats_output = pointer_sequences_stats_lines.length > 0
-    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("") + "\n"
+    ? "pointer_sequences_stats:\n" + pointer_sequences_stats_lines.join("") + "\nсредняя длительность: " + avg_duration + "мин\n"
     : "pointer_sequences_stats: (empty)\n";
 
-  alert(
+  var alert_message =
     script_filename + "\n" +
     "script_total_time = " + script_total_time + "\n" +
     "setValuesAtTimes_total_time = " + setValuesAtTimes_total_time + "\n" +
@@ -833,7 +867,8 @@
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
-    pointer_sequences_stats_output
-  );
+    pointer_sequences_stats_output;
+
+  showScrollableDialog(script_filename, alert_message);
 
 })();
