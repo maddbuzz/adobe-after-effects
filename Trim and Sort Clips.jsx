@@ -6,6 +6,8 @@
     "Это скрипт\n\n" +
     script_filename + "\n\n" +
     "Контролы на слое 'script_controls' (в порядке применения):\n\n" +
+    "Перемешивание:\n" +
+    "• shuffle_layers - перемешать слои случайным образом (работает независимо от сортировки)\n\n" +
     "Сортировка (определяет порядок слоев в панели слоев - какие будут ниже/выше, каскадная):\n" +
     "• sort_by_source_name - сначала по имени исходного файла (алфавитно)\n" +
     "• sort_by_source_offset - затем по смещению внутри слоя относительно начала файла (если имена одинаковые или сортировка по имени выключена)\n" +
@@ -81,6 +83,7 @@
     return effect.property(type);
   }
 
+  create_control_if_not_exists(control_layer, "shuffle_layers", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_source_offset", "Checkbox", true);
   create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
@@ -90,6 +93,7 @@
   create_control_if_not_exists(control_layer, "trim_start_seconds", "Slider", 1);
   create_control_if_not_exists(control_layer, "trim_end_seconds", "Slider", 4);
 
+  const shuffle_layers = get_control(control_layer, "shuffle_layers", "Checkbox").value;
   const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
   const sort_by_source_offset = get_control(control_layer, "sort_by_source_offset", "Checkbox").value;
   const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
@@ -115,6 +119,16 @@
   if (target_layers.length === 0) {
     alert("Нет подходящих слоёв (видео или аудио).");
     return;
+  }
+
+  // Перемешивание слоев (если включено)
+  if (shuffle_layers) {
+    for (var i = target_layers.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = target_layers[i];
+      target_layers[i] = target_layers[j];
+      target_layers[j] = temp;
+    }
   }
 
   if (sort_by_source_name || sort_by_layer_duration || sort_by_source_offset) {
