@@ -5,18 +5,20 @@
   var message =
     "Это скрипт\n\n" +
     script_filename + "\n\n" +
-    "Контролы на слое 'script_controls':\n\n" +
-    "• trim_clips - обрезать клипы и после переупорядочить на таймлайне\n" +
-    "  (если выключен - только переупорядочить)\n\n" +
-    "Сортировка (каскадная, применяется последовательно):\n" +
-    "• sort_by_source_name - сначала по имени исходного файла\n" +
+    "Контролы на слое 'script_controls' (в порядке применения):\n\n" +
+    "Сортировка (определяет порядок слоев в панели слоев - какие будут ниже/выше, каскадная):\n" +
+    "• sort_by_source_name - сначала по имени исходного файла (алфавитно)\n" +
     "• sort_by_source_offset - затем по смещению внутри слоя относительно начала файла (если имена одинаковые или сортировка по имени выключена)\n" +
     "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если смещения одинаковые или сортировка по смещению выключена)\n" +
     "• reverse_sort_order - обратить итоговый порядок сортировки\n\n" +
-    "• scale_to_fit_comp - масштабировать слои для вписывания в композицию\n\n" +
-    "• trim_start_seconds - обрезать начало каждого слоя (секунды)\n\n" +
+    "Масштабирование:\n" +
+    "• scale_to_fit_comp - масштабировать видеослои для вписывания в размер композиции\n\n" +
+    "Обрезка И/ИЛИ Упорядочивание на таймлайне (раньше/позже по времени):\n" +
+    "• trim_clips - обрезать клипы и разместить их последовательно на таймлайне\n" +
+    "  (если выключен - только разместить последовательно без обрезки)\n" +
+    "• trim_start_seconds - обрезать начало каждого слоя (секунды)\n" +
     "• trim_end_seconds - обрезать конец каждого слоя (секунды)\n" +
-    "  (оба применяются при включенном trim_clips, обрезка происходит после Time Stretch)\n\n" +
+    "  (trim_start_seconds и trim_end_seconds применяются при включенном trim_clips, обрезка с учётом Time Stretch на слое)\n\n" +
     "Хотите продолжить?";
   var proceed = confirm(message);
   if (!proceed) return;
@@ -79,21 +81,21 @@
     return effect.property(type);
   }
 
-  create_control_if_not_exists(control_layer, "trim_clips", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_source_offset", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_sort_order", "Checkbox", false);
   create_control_if_not_exists(control_layer, "scale_to_fit_comp", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "trim_clips", "Checkbox", false);
   create_control_if_not_exists(control_layer, "trim_start_seconds", "Slider", 1);
   create_control_if_not_exists(control_layer, "trim_end_seconds", "Slider", 4);
 
-  const trim_clips = get_control(control_layer, "trim_clips", "Checkbox").value;
   const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
-  const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
   const sort_by_source_offset = get_control(control_layer, "sort_by_source_offset", "Checkbox").value;
+  const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
   const reverse_sort_order = get_control(control_layer, "reverse_sort_order", "Checkbox").value;
   const scale_to_fit_comp = get_control(control_layer, "scale_to_fit_comp", "Checkbox").value;
+  const trim_clips = get_control(control_layer, "trim_clips", "Checkbox").value;
   const trim_start_seconds = get_control(control_layer, "trim_start_seconds", "Slider").value;
   const trim_end_seconds = get_control(control_layer, "trim_end_seconds", "Slider").value;
 
