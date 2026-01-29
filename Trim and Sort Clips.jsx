@@ -8,7 +8,7 @@
     "Контролы на слое 'script_controls' (в порядке применения):\n\n" +
     "Сортировка (определяет порядок слоев в панели слоев - какие будут ниже/выше, каскадная):\n" +
     "• sort_by_source_name - сначала по имени исходного файла (алфавитно)\n" +
-    "• sort_by_source_offset - затем по смещению внутри слоя относительно начала файла (если имена одинаковые или сортировка по имени выключена)\n" +
+    "• sort_by_source_offset - затем по смещению начала внутри файла, если одинаковые - по смещению конца (если имена одинаковые или сортировка по имени выключена)\n" +
     "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если смещения одинаковые или сортировка по смещению выключена)\n" +
     "• reverse_sort_order - обратить итоговый порядок сортировки\n\n" +
     "Масштабирование:\n" +
@@ -82,7 +82,7 @@
   }
 
   create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_source_offset", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_source_offset", "Checkbox", true);
   create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_sort_order", "Checkbox", false);
   create_control_if_not_exists(control_layer, "scale_to_fit_comp", "Checkbox", true);
@@ -132,10 +132,17 @@
       // Вторичная сортировка: если имена одинаковые (или сортировка по имени не включена), применяем сортировку по смещению и/или по длительности
       if (result === 0) {
         if (sort_by_source_offset) { // сортируем по смещению внутри слоя относительно начала файла
-          var offset_a = layer_a.inPoint - layer_a.startTime;
-          var offset_b = layer_b.inPoint - layer_b.startTime;
-          if (offset_a < offset_b) result = -1;
-          if (offset_a > offset_b) result = +1;
+          var offset_start_a = layer_a.inPoint - layer_a.startTime;
+          var offset_start_b = layer_b.inPoint - layer_b.startTime;
+          if (offset_start_a < offset_start_b) result = -1;
+          if (offset_start_a > offset_start_b) result = +1;
+          // Если смещения начала одинаковые, сравниваем смещения конца
+          if (result === 0) {
+            var offset_end_a = layer_a.outPoint - layer_a.startTime;
+            var offset_end_b = layer_b.outPoint - layer_b.startTime;
+            if (offset_end_a < offset_end_b) result = -1;
+            if (offset_end_a > offset_end_b) result = +1;
+          }
         }
         if (result === 0 && sort_by_layer_duration) { // если смещения одинаковые (или сортировка по смещению не включена), сортируем по длительности слоя
           var duration_a = layer_a.outPoint - layer_a.inPoint;
