@@ -186,22 +186,22 @@
     var win = new Window("dialog", title);
     win.orientation = "column";
     win.alignChildren = "fill";
-    
+
     var scrollGroup = win.add("group");
     scrollGroup.orientation = "column";
     scrollGroup.alignChildren = "fill";
     scrollGroup.preferredSize.width = 600;
     scrollGroup.preferredSize.height = 400;
-    
-    var textArea = scrollGroup.add("edittext", undefined, message, {multiline: true, scrolling: true, readonly: true});
+
+    var textArea = scrollGroup.add("edittext", undefined, message, { multiline: true, scrolling: true, readonly: true });
     textArea.preferredSize.width = 580;
     textArea.preferredSize.height = 380;
-    
+
     var buttonGroup = win.add("group");
     buttonGroup.alignment = "center";
     var okButton = buttonGroup.add("button", undefined, "OK");
-    okButton.onClick = function() { win.close(); };
-    
+    okButton.onClick = function () { win.close(); };
+
     win.show();
   }
 
@@ -274,6 +274,8 @@
   create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "RANDOMIZE_POINTERS_BEFORE_START", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 15); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
+  create_new_or_return_existing_control(beat_layer, "DONT_REMOVE_POINTERS_BELOW", "Slider", 3);
+  create_new_or_return_existing_control(beat_layer, "STOP_IF_ONLY_BOUNCED_LEFT", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "STOP_AFTER_SEQUENCES", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
@@ -299,6 +301,8 @@
   const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
   const RANDOMIZE_POINTERS_BEFORE_START = beat_layer.effect("RANDOMIZE_POINTERS_BEFORE_START")("Checkbox").value;
   const POINTERS_SEQUENCE_SIZE = beat_layer.effect("POINTERS_SEQUENCE_SIZE")("Slider").value;
+  const DONT_REMOVE_POINTERS_BELOW = beat_layer.effect("DONT_REMOVE_POINTERS_BELOW")("Slider").value;
+  const STOP_IF_ONLY_BOUNCED_LEFT = beat_layer.effect("STOP_IF_ONLY_BOUNCED_LEFT")("Checkbox").value;
   const STOP_AFTER_SEQUENCES = beat_layer.effect("STOP_AFTER_SEQUENCES")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
@@ -425,6 +429,13 @@
     randomize_pointers_called++;
     fisher_yates_shuffle(pointers, shuffle_size);
     return pointers;
+  }
+
+  function all_pointers_bounced(pointers) {
+    for (var i = 0; i < pointers.length; i++) {
+      if (!pointers[i].bounced_total) return false;
+    }
+    return true;
   }
 
   function get_random_permutation(last) {
@@ -654,7 +665,6 @@
           // else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
         }
         else if (effect_number === 3) { // jump in time
-          var prev_pointer_index = pointer_index;
           var prev_pointer_number = pointers[pointer_index].number;
 
           // Инкрементируем счетчик для текущего поинтера ДО его возможного удаления
@@ -662,23 +672,29 @@
 
           var spliced = false;
           if (pointers[pointer_index].bounced_total) {
-            pointers.splice(pointer_index, 1);
-            spliced = true;
+            if (pointers.length > DONT_REMOVE_POINTERS_BELOW) {
+              pointers.splice(pointer_index, 1);
+              spliced = true;
+            }
+          }
+          if (!spliced) pointer_index += 1;
+
+          if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers)) {
+            time_processing_stopped_at = time;
+            break;
           }
 
           if (pointers.length <= POINTERS_LEFT_TO_STOP) {
             time_processing_stopped_at = time;
             break;
           }
+
           if (pointers.length === 0) {
             pointers = get_pointers();
             randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
             pointer_index = 0;
           }
 
-          pointer_index = spliced
-            ? prev_pointer_index
-            : prev_pointer_index + 1;
           var real_sequence_size = POINTERS_SEQUENCE_SIZE > 0
             ? Math.min(POINTERS_SEQUENCE_SIZE, pointers.length)
             : pointers.length;
@@ -696,6 +712,7 @@
               real_sequence_size: real_sequence_size,
             });
           }
+
           if (STOP_AFTER_SEQUENCES > 0 && randomize_pointers_called > STOP_AFTER_SEQUENCES) {
             time_processing_stopped_at = time;
             break;
@@ -836,6 +853,8 @@
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
     "RANDOMIZE_POINTERS_BEFORE_START = " + RANDOMIZE_POINTERS_BEFORE_START + "\n" +
     "POINTERS_SEQUENCE_SIZE = " + POINTERS_SEQUENCE_SIZE + "\n" +
+    "DONT_REMOVE_POINTERS_BELOW = " + DONT_REMOVE_POINTERS_BELOW + "\n" +
+    "STOP_IF_ONLY_BOUNCED_LEFT = " + STOP_IF_ONLY_BOUNCED_LEFT + "\n" +
     "STOP_AFTER_SEQUENCES = " + STOP_AFTER_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
