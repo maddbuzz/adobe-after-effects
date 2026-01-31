@@ -634,8 +634,10 @@
 
       if (FX_triggered) {
         if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
-          pointers[pointer_index].direction *= -1;
-          pointers[pointer_index].bounced_total++; // это тоже баунс, хоть и не от краев
+          if (pointers[pointer_index].direction > 0 || Math.random() < 0.5) {
+            pointers[pointer_index].direction *= -1;
+            pointers[pointer_index].bounced_total++; // это тоже баунс, хоть и не от краев
+          }
         }
 
         var prev_effect_number = effects_sequence[effect_sequence_index];
@@ -895,7 +897,7 @@
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
-    pointer_sequences_stats_output+ "\n" +
+    pointer_sequences_stats_output + "\n" +
     "FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = " + FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation;
 
   showScrollableDialog(script_filename, alert_message);
