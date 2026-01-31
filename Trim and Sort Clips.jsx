@@ -85,9 +85,9 @@
   }
 
   create_control_if_not_exists(control_layer, "shuffle_layers", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_layers_starts_in_sources", "Checkbox", true);
-  create_control_if_not_exists(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox", false);
+  create_control_if_not_exists(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_layers_starts_in_sources", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_sort_order", "Checkbox", false);
   create_control_if_not_exists(control_layer, "scale_to_fit_comp", "Checkbox", true);
@@ -96,9 +96,9 @@
   create_control_if_not_exists(control_layer, "trim_end_seconds", "Slider", 4);
 
   const shuffle_layers = get_control(control_layer, "shuffle_layers", "Checkbox").value;
+  const sort_by_offset_from_first_layer_in_file = get_control(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox").value;
   const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
   const sort_by_layers_starts_in_sources = get_control(control_layer, "sort_by_layers_starts_in_sources", "Checkbox").value;
-  const sort_by_offset_from_first_layer_in_file = get_control(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox").value;
   const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
   const reverse_sort_order = get_control(control_layer, "reverse_sort_order", "Checkbox").value;
   const scale_to_fit_comp = get_control(control_layer, "scale_to_fit_comp", "Checkbox").value;
