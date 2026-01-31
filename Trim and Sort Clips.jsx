@@ -12,7 +12,7 @@
     "• sort_by_offset_from_first_layer_in_file - сначала по смещению слоя относительно первого слоя в файле\n" +
     "• sort_by_source_name - затем по имени исходного файла (алфавитно, если смещения одинаковые или сортировка по смещению выключена)\n" +
     "• sort_by_layers_starts_in_sources - затем по смещению начал слоев внутри их файлов (если имена одинаковые или сортировка по имени выключена)\n" +
-    "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если смещения одинаковые или сортировка по смещению начала слоя выключена)\n" +
+    "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если все предыдущие критерии одинаковые)\n" +
     "• reverse_sort_order - обратить итоговый порядок сортировки\n\n" +
     "Масштабирование:\n" +
     "• scale_to_fit_comp - масштабировать видеослои для вписывания в размер композиции\n\n" +
@@ -124,15 +124,16 @@
     return;
   }
 
-  // Находим минимальный inPoint для каждого медиафайла (момент с которого медиафайл реально используется)
-  var source_min_inPoint = {};
+  // Находим минимальное смещение внутри исходного файла для каждого медиафайла (момент с которого медиафайл реально используется)
+  var source_min_offset = {};
   for (var i = 0; i < target_layers.length; i++) {
     var layer = target_layers[i];
     var source_key = layer.source.name; // используем имя файла как ключ
-    if (!source_min_inPoint[source_key]) {
-      source_min_inPoint[source_key] = layer.inPoint;
+    var offset_in_source = layer.inPoint - layer.startTime; // смещение начала видимой части внутри исходного файла
+    if (!source_min_offset[source_key]) {
+      source_min_offset[source_key] = offset_in_source;
     } else {
-      if (layer.inPoint < source_min_inPoint[source_key]) source_min_inPoint[source_key] = layer.inPoint;
+      if (offset_in_source < source_min_offset[source_key]) source_min_offset[source_key] = offset_in_source;
     }
   }
 
@@ -152,12 +153,14 @@
 
       // Сортировка по смещению слоя относительно первого слоя в файле (если включена)
       if (sort_by_offset_from_first_layer_in_file) {
-        var min_inPoint_a = source_min_inPoint[layer_a.source.name];
-        var min_inPoint_b = source_min_inPoint[layer_b.source.name];
-        var offset_a = layer_a.inPoint - min_inPoint_a;
-        var offset_b = layer_b.inPoint - min_inPoint_b;
-        if (offset_a < offset_b) result = -1;
-        if (offset_a > offset_b) result = +1;
+        var first_layer_offset_in_file_a = source_min_offset[layer_a.source.name]; // смещение первого слоя в файле внутри исходного файла
+        var first_layer_offset_in_file_b = source_min_offset[layer_b.source.name]; // смещение первого слоя в файле внутри исходного файла
+        var current_layer_offset_in_file_a = layer_a.inPoint - layer_a.startTime; // смещение текущего слоя внутри исходного файла
+        var current_layer_offset_in_file_b = layer_b.inPoint - layer_b.startTime; // смещение текущего слоя внутри исходного файла
+        var offset_from_first_layer_a = current_layer_offset_in_file_a - first_layer_offset_in_file_a; // смещение текущего слоя относительно первого слоя в файле
+        var offset_from_first_layer_b = current_layer_offset_in_file_b - first_layer_offset_in_file_b; // смещение текущего слоя относительно первого слоя в файле
+        if (offset_from_first_layer_a < offset_from_first_layer_b) result = -1;
+        if (offset_from_first_layer_a > offset_from_first_layer_b) result = +1;
       }
 
       // Сортировка по имени (если включена и смещения одинаковые)
