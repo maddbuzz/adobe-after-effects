@@ -9,9 +9,10 @@
     "Перемешивание:\n" +
     "• shuffle_layers - перемешать слои случайным образом (работает независимо от сортировки)\n\n" +
     "Сортировка (определяет порядок слоев в панели слоев - какие будут ниже/выше, каскадная):\n" +
-    "• sort_by_source_name - сначала по имени исходного файла (алфавитно)\n" +
-    "• sort_by_source_offset - затем по смещению внутри слоя относительно начала файла (если имена одинаковые или сортировка по имени выключена)\n" +
-    "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если смещения одинаковые или сортировка по смещению выключена)\n" +
+    "• sort_by_offset_from_first_layer_in_file - сначала по смещению слоя относительно первого слоя в файле\n" +
+    "• sort_by_source_name - затем по имени исходного файла (алфавитно, если смещения одинаковые или сортировка по смещению выключена)\n" +
+    "• sort_by_layers_starts_in_sources - затем по смещению начал слоев внутри их файлов (если имена одинаковые или сортировка по имени выключена)\n" +
+    "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если смещения одинаковые или сортировка по смещению начала слоя выключена)\n" +
     "• reverse_sort_order - обратить итоговый порядок сортировки\n\n" +
     "Масштабирование:\n" +
     "• scale_to_fit_comp - масштабировать видеослои для вписывания в размер композиции\n\n" +
@@ -85,7 +86,8 @@
 
   create_control_if_not_exists(control_layer, "shuffle_layers", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_source_offset", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_layers_starts_in_sources", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_sort_order", "Checkbox", false);
   create_control_if_not_exists(control_layer, "scale_to_fit_comp", "Checkbox", true);
@@ -95,7 +97,8 @@
 
   const shuffle_layers = get_control(control_layer, "shuffle_layers", "Checkbox").value;
   const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
-  const sort_by_source_offset = get_control(control_layer, "sort_by_source_offset", "Checkbox").value;
+  const sort_by_layers_starts_in_sources = get_control(control_layer, "sort_by_layers_starts_in_sources", "Checkbox").value;
+  const sort_by_offset_from_first_layer_in_file = get_control(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox").value;
   const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
   const reverse_sort_order = get_control(control_layer, "reverse_sort_order", "Checkbox").value;
   const scale_to_fit_comp = get_control(control_layer, "scale_to_fit_comp", "Checkbox").value;
@@ -121,6 +124,18 @@
     return;
   }
 
+  // Находим минимальный inPoint для каждого медиафайла (момент с которого медиафайл реально используется)
+  var source_min_inPoint = {};
+  for (var i = 0; i < target_layers.length; i++) {
+    var layer = target_layers[i];
+    var source_key = layer.source.name; // используем имя файла как ключ
+    if (!source_min_inPoint[source_key]) {
+      source_min_inPoint[source_key] = layer.inPoint;
+    } else {
+      if (layer.inPoint < source_min_inPoint[source_key]) source_min_inPoint[source_key] = layer.inPoint;
+    }
+  }
+
   // Перемешивание слоев (если включено)
   if (shuffle_layers) {
     for (var i = target_layers.length - 1; i > 0; i--) {
@@ -131,12 +146,22 @@
     }
   }
 
-  if (sort_by_source_name || sort_by_layer_duration || sort_by_source_offset) {
+  if (sort_by_source_name || sort_by_layer_duration || sort_by_layers_starts_in_sources || sort_by_offset_from_first_layer_in_file) {
     target_layers.sort(function (layer_a, layer_b) {
       var result = 0;
 
-      // Сортировка по имени (если включена)
-      if (sort_by_source_name) {
+      // Сортировка по смещению слоя относительно первого слоя в файле (если включена)
+      if (sort_by_offset_from_first_layer_in_file) {
+        var min_inPoint_a = source_min_inPoint[layer_a.source.name];
+        var min_inPoint_b = source_min_inPoint[layer_b.source.name];
+        var offset_a = layer_a.inPoint - min_inPoint_a;
+        var offset_b = layer_b.inPoint - min_inPoint_b;
+        if (offset_a < offset_b) result = -1;
+        if (offset_a > offset_b) result = +1;
+      }
+
+      // Сортировка по имени (если включена и смещения одинаковые)
+      if (result === 0 && sort_by_source_name) {
         var name_a = layer_a.source.name.toLowerCase();
         var name_b = layer_b.source.name.toLowerCase();
         if (name_a < name_b) result = -1;
@@ -145,7 +170,10 @@
 
       // Вторичная сортировка: если имена одинаковые (или сортировка по имени не включена), применяем сортировку по смещению и/или по длительности
       if (result === 0) {
-        if (sort_by_source_offset) { // сортируем по смещению внутри слоя относительно начала файла
+        if (sort_by_layers_starts_in_sources) { // сортируем по смещению начал слоев внутри их файлов
+          // inPoint - время начала видимой части слоя на таймлайне композиции
+          // startTime - время начала слоя на таймлайне композиции
+          // Разница дает смещение начала видимой части внутри исходного файла
           var offset_a = layer_a.inPoint - layer_a.startTime;
           var offset_b = layer_b.inPoint - layer_b.startTime;
           if (offset_a < offset_b) result = -1;
@@ -185,11 +213,11 @@
       // Вариант 1: source.duration - исходная длительность файла, НЕ учитывает Time Stretch
       //   (если файл 10 сек, а Time Stretch = 200%, вернет 10 сек вместо 20)
       // var source_duration = current_layer.source.duration;
-      
+
       // Вариант 2: outPoint - inPoint - видимая длительность на таймлайне, учитывает Time Stretch
       //   ПРОБЛЕМА: при повторных запусках обрезка применяется к уже обрезанному слою снова и снова
       // var source_duration = current_layer.outPoint - current_layer.inPoint;
-      
+
       // Вариант 3 (используется): расчет от исходной длительности с учетом Time Stretch
       //   Всегда работает с исходной длительностью файла, не зависит от предыдущих запусков
       var source_duration = current_layer.source.duration * current_layer.stretch / 100;
