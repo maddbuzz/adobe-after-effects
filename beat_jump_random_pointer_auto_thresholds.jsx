@@ -479,6 +479,9 @@
 
   var FX_triggered_total = 0;
   var is_FX_active = false;
+  var last_FX_activation_time = null;
+  const MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS = scale_ADSR_attack + scale_ADSR_delay;
+  var FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = 0;
   const windows_stats_values = [];
 
   var scale_ADSR_activation_time = null;
@@ -612,9 +615,15 @@
         if (input_C_deactivation_value >= input_C_activation_value) {
           input_C_deactivation_value_equal_activation_value++; // skip activation if so
         } else {
-          is_FX_active = true;
-          FX_triggered = true;
-          FX_triggered_total++;
+          // Проверяем, прошло ли достаточно времени с момента последней активации
+          if (last_FX_activation_time !== null && (time - last_FX_activation_time) < MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS) {
+            FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation++; // пропускаем активацию
+          } else {
+            last_FX_activation_time = time; // запоминаем время активации
+            is_FX_active = true;
+            FX_triggered = true;
+            FX_triggered_total++;
+          }
         }
       }
 
@@ -886,7 +895,8 @@
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
-    pointer_sequences_stats_output;
+    pointer_sequences_stats_output+ "\n" +
+    "FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = " + FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation;
 
   showScrollableDialog(script_filename, alert_message);
 
