@@ -272,8 +272,9 @@
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
   create_new_or_return_existing_control(beat_layer, "S_WarpFishEye_Amount_neg_max", "Slider", -0.25);
   create_new_or_return_existing_control(beat_layer, "desired_pointer_length_seconds", "Slider", 0);
-  create_new_or_return_existing_control(beat_layer, "RANDOMIZE_POINTERS_BEFORE_START", "Checkbox", false);
-  create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 15); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
+  create_new_or_return_existing_control(beat_layer, "RANDOMIZE_POINTERS_BEFORE_START", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 8); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
+  create_new_or_return_existing_control(beat_layer, "DONT_SHUFFLE_FIRST_SEQUENCE", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "DONT_REMOVE_POINTERS_BELOW", "Slider", 3);
   create_new_or_return_existing_control(beat_layer, "STOP_IF_ONLY_BOUNCED_LEFT", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "STOP_AFTER_SEQUENCES", "Slider", 0);
@@ -301,6 +302,7 @@
   const desired_pointer_length_seconds = beat_layer.effect("desired_pointer_length_seconds")("Slider").value;
   const RANDOMIZE_POINTERS_BEFORE_START = beat_layer.effect("RANDOMIZE_POINTERS_BEFORE_START")("Checkbox").value;
   const POINTERS_SEQUENCE_SIZE = beat_layer.effect("POINTERS_SEQUENCE_SIZE")("Slider").value;
+  const DONT_SHUFFLE_FIRST_SEQUENCE = beat_layer.effect("DONT_SHUFFLE_FIRST_SEQUENCE")("Checkbox").value;
   const DONT_REMOVE_POINTERS_BELOW = beat_layer.effect("DONT_REMOVE_POINTERS_BELOW")("Slider").value;
   const STOP_IF_ONLY_BOUNCED_LEFT = beat_layer.effect("STOP_IF_ONLY_BOUNCED_LEFT")("Checkbox").value;
   const STOP_AFTER_SEQUENCES = beat_layer.effect("STOP_AFTER_SEQUENCES")("Slider").value;
@@ -448,10 +450,14 @@
   }
 
   var pointers = get_pointers();
-  var zero_element = pointers.shift(); // убираем нулевой элемент
-  if (RANDOMIZE_POINTERS_BEFORE_START) randomize_pointers(pointers);
-  else randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE - 1); // без нулевого элемента !!!
-  pointers.unshift(zero_element); // возвращаем нулевой элемент обратно
+  if (DONT_SHUFFLE_FIRST_SEQUENCE) {
+    var first_sequence = pointers.splice(0, POINTERS_SEQUENCE_SIZE);
+    if (RANDOMIZE_POINTERS_BEFORE_START) randomize_pointers(pointers);
+    for (var i = first_sequence.length - 1; i >= 0; i--) pointers.unshift(first_sequence[i]);
+  } else {
+    if (RANDOMIZE_POINTERS_BEFORE_START) randomize_pointers(pointers);
+    else randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
+  }
   var pointer_index = 0; // getRandomInt(pointers.length);
 
   var pointer_sequences_stats = [{
@@ -864,6 +870,7 @@
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
     "RANDOMIZE_POINTERS_BEFORE_START = " + RANDOMIZE_POINTERS_BEFORE_START + "\n" +
     "POINTERS_SEQUENCE_SIZE = " + POINTERS_SEQUENCE_SIZE + "\n" +
+    "DONT_SHUFFLE_FIRST_SEQUENCE = " + DONT_SHUFFLE_FIRST_SEQUENCE + "\n" +
     "DONT_REMOVE_POINTERS_BELOW = " + DONT_REMOVE_POINTERS_BELOW + "\n" +
     "STOP_IF_ONLY_BOUNCED_LEFT = " + STOP_IF_ONLY_BOUNCED_LEFT + "\n" +
     "STOP_AFTER_SEQUENCES = " + STOP_AFTER_SEQUENCES + "\n" +
