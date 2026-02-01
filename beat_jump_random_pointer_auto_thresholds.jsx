@@ -276,6 +276,7 @@
   create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 8); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
   create_new_or_return_existing_control(beat_layer, "DONT_SHUFFLE_FIRST_SEQUENCE", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "DONT_REMOVE_POINTERS_BELOW", "Slider", 3);
+  create_new_or_return_existing_control(beat_layer, "MIN_BOUNCES_TO_REMOVE_POINTER", "Slider", 4); // минимум 1, не 0 !
   create_new_or_return_existing_control(beat_layer, "STOP_IF_ONLY_BOUNCED_LEFT", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "STOP_AFTER_SEQUENCES", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "time_remap_use_clips_for_pointers", "Checkbox", true); // if true then desired_pointer_length_seconds is used for ONE clip
@@ -304,6 +305,7 @@
   const POINTERS_SEQUENCE_SIZE = beat_layer.effect("POINTERS_SEQUENCE_SIZE")("Slider").value;
   const DONT_SHUFFLE_FIRST_SEQUENCE = beat_layer.effect("DONT_SHUFFLE_FIRST_SEQUENCE")("Checkbox").value;
   const DONT_REMOVE_POINTERS_BELOW = beat_layer.effect("DONT_REMOVE_POINTERS_BELOW")("Slider").value;
+  const MIN_BOUNCES_TO_REMOVE_POINTER = beat_layer.effect("MIN_BOUNCES_TO_REMOVE_POINTER")("Slider").value;
   const STOP_IF_ONLY_BOUNCED_LEFT = beat_layer.effect("STOP_IF_ONLY_BOUNCED_LEFT")("Checkbox").value;
   const STOP_AFTER_SEQUENCES = beat_layer.effect("STOP_AFTER_SEQUENCES")("Slider").value;
   const time_remap_use_clips_for_pointers = beat_layer.effect("time_remap_use_clips_for_pointers")("Checkbox").value;
@@ -433,9 +435,10 @@
     return pointers;
   }
 
-  function all_pointers_bounced(pointers) {
+  function all_pointers_bounced(pointers, min_bounces) {
+    if (min_bounces === undefined) min_bounces = 1; // В ExtendScript (ES3) значения по умолчанию в параметрах функций не поддерживаются
     for (var i = 0; i < pointers.length; i++) {
-      if (!pointers[i].bounced_total) return false;
+      if (pointers[i].bounced_total < min_bounces) return false;
     }
     return true;
   }
@@ -688,7 +691,7 @@
           pointers_counters[prev_pointer_number]++;
 
           var spliced = false;
-          if (pointers[pointer_index].bounced_total) {
+          if (pointers[pointer_index].bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
             if (pointers.length > DONT_REMOVE_POINTERS_BELOW) {
               pointers.splice(pointer_index, 1);
               spliced = true;
@@ -696,7 +699,7 @@
           }
           if (!spliced) pointer_index += 1;
 
-          if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers)) {
+          if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
             time_processing_stopped_at = time;
             break;
           }
@@ -872,6 +875,7 @@
     "POINTERS_SEQUENCE_SIZE = " + POINTERS_SEQUENCE_SIZE + "\n" +
     "DONT_SHUFFLE_FIRST_SEQUENCE = " + DONT_SHUFFLE_FIRST_SEQUENCE + "\n" +
     "DONT_REMOVE_POINTERS_BELOW = " + DONT_REMOVE_POINTERS_BELOW + "\n" +
+    "MIN_BOUNCES_TO_REMOVE_POINTER = " + MIN_BOUNCES_TO_REMOVE_POINTER + "\n" +
     "STOP_IF_ONLY_BOUNCED_LEFT = " + STOP_IF_ONLY_BOUNCED_LEFT + "\n" +
     "STOP_AFTER_SEQUENCES = " + STOP_AFTER_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
