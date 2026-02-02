@@ -276,7 +276,7 @@
   create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 8); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
   create_new_or_return_existing_control(beat_layer, "DONT_SHUFFLE_FIRST_SEQUENCE", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "FX_BOUNCE_FWD_PROBABILITY", "Slider", 0.5);
-  create_new_or_return_existing_control(beat_layer, "MIN_BOUNCES_TO_REMOVE_POINTER", "Slider", 1); // дефолт 1
+  create_new_or_return_existing_control(beat_layer, "MIN_BOUNCES_TO_REMOVE_POINTER", "Slider", 3); // дефолт 1
   create_new_or_return_existing_control(beat_layer, "DONT_REMOVE_POINTERS_BELOW", "Slider", 0); // если больше 0, нужно включить STOP_IF_ONLY_BOUNCED_LEFT
   create_new_or_return_existing_control(beat_layer, "STOP_IF_ONLY_BOUNCED_LEFT", "Checkbox", false); // нужно включить, если DONT_REMOVE_POINTERS_BELOW > 0
   create_new_or_return_existing_control(beat_layer, "STOP_AFTER_SEQUENCES", "Slider", 0);
@@ -693,6 +693,32 @@
           pointers_counters[prev_pointer_number]++;
 
           var spliced = false;
+          /*
+            *** ПРОБНЫЕ ЗАМЕРЫ (при FX_BOUNCE_FWD_PROBABILITY = 0.5) ***
+            MIN_BOUNCES_TO_REMOVE_POINTER = 1
+            unique_to_total_ratio = 0.87874758010376
+            00:33:55 50: -1.0мин, 1/1ук
+
+            MIN_BOUNCES_TO_REMOVE_POINTER = 2
+            unique_to_total_ratio = 0.84120230386146
+            00:35:07 50: -1.0мин, 1/1ук
+
+            MIN_BOUNCES_TO_REMOVE_POINTER = 3
+            unique_to_total_ratio = 0.8397978613546
+            00:35:09 50: -1.0мин, 1/1ук
+
+            MIN_BOUNCES_TO_REMOVE_POINTER = 4
+            unique_to_total_ratio = 0.79165614663252
+            00:37:08 52: -1.0мин, 1/1ук
+
+            MIN_BOUNCES_TO_REMOVE_POINTER = 5
+            unique_to_total_ratio = 0.78905980737349
+            00:37:16 60: -1.0мин, 1/1ук
+
+            MIN_BOUNCES_TO_REMOVE_POINTER = 6
+            unique_to_total_ratio = 0.72436198012708
+            00:40:23 60: -1.0мин, 1/1ук
+          */
           // if (pointers[pointer_index].bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
           if (old_bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
             if (pointers.length > DONT_REMOVE_POINTERS_BELOW) {
