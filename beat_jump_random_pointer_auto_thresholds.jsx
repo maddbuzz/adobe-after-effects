@@ -718,6 +718,10 @@
             MIN_BOUNCES_TO_REMOVE_POINTER = 6
             unique_to_total_ratio = 0.72436198012708
             00:40:23 60: -1.0мин, 1/1ук
+
+            MIN_BOUNCES_TO_REMOVE_POINTER = 7
+            unique_to_total_ratio = 0.73101777986311
+            00:40:12 54: -1.0мин, 1/1ук
           */
           // if (pointers[pointer_index].bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
           if (old_bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
