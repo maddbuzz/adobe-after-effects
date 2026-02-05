@@ -261,7 +261,8 @@
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_max_value", "Slider", 2.0);
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.666); // [0, 1]
+  create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
+  create_new_or_return_existing_control(beat_layer, "MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS", "Slider", 1.0); // seconds ?(scale_ADSR_attack + scale_ADSR_delay)
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -292,6 +293,7 @@
   const inputs_ABC_min_value = beat_layer.effect("inputs_ABC_min_value")("Slider").value;
   const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
+  const MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS = beat_layer.effect("MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS")("Slider").value;
   const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
@@ -491,7 +493,6 @@
   var FX_triggered_total = 0;
   var is_FX_active = false;
   var last_FX_activation_time = null;
-  const MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS = scale_ADSR_attack + scale_ADSR_delay;
   var FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = 0;
   const windows_stats_values = [];
 
@@ -943,6 +944,7 @@
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
+    "MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS = " + MINIMAL_TIME_BEETWEEN_EFFECT_ACTIVATIONS + "\n" +
     pointer_sequences_stats_output + "\n" +
     "FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = " + FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation;
 
