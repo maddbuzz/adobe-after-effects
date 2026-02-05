@@ -944,8 +944,8 @@
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
-    "FX_MIN_ACTIVATION_INTERVAL = " + FX_MIN_ACTIVATION_INTERVAL + "\n" +
     pointer_sequences_stats_output + "\n" +
+    "FX_MIN_ACTIVATION_INTERVAL = " + FX_MIN_ACTIVATION_INTERVAL + "\n" +
     "FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = " + FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation;
 
   showScrollableDialog(script_filename, alert_message);
