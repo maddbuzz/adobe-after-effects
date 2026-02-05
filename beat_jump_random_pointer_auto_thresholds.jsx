@@ -262,7 +262,7 @@
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "FX_MIN_ACTIVATION_INTERVAL", "Slider", 1.0); // seconds ?(scale_ADSR_attack + scale_ADSR_delay)
+  create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.125); // seconds - если раньше сработает, то будет использован quickFX вместо обычного
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
@@ -293,7 +293,7 @@
   const inputs_ABC_min_value = beat_layer.effect("inputs_ABC_min_value")("Slider").value;
   const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
-  const FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
+  const REGULAR_FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("REGULAR_FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
   const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
   const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
@@ -629,7 +629,7 @@
           input_C_deactivation_value_equal_activation_value++; // skip activation if so
         } else {
           // Проверяем, прошло ли достаточно времени с момента последней активации
-          if ((last_FX_activation_time !== null) && (time - last_FX_activation_time < FX_MIN_ACTIVATION_INTERVAL)) {
+          if ((last_FX_activation_time !== null) && (time - last_FX_activation_time < REGULAR_FX_MIN_ACTIVATION_INTERVAL)) {
             use_quickFX_instead_of_regular = true;
             quickFX_used_due_to_insufficient_time_since_previous_activation++;
           } else use_quickFX_instead_of_regular = false;
@@ -949,7 +949,7 @@
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
-    "FX_MIN_ACTIVATION_INTERVAL = " + FX_MIN_ACTIVATION_INTERVAL + "\n" +
+    "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
     "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation;
 
   showScrollableDialog(script_filename, alert_message);
