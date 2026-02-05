@@ -493,7 +493,8 @@
   var FX_triggered_total = 0;
   var is_FX_active = false;
   var last_FX_activation_time = null;
-  var FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = 0;
+  var use_quickFX_instead_of_regular = false;
+  var quickFX_used_due_to_insufficient_time_since_previous_activation = 0;
   const windows_stats_values = [];
 
   var scale_ADSR_activation_time = null;
@@ -628,14 +629,15 @@
           input_C_deactivation_value_equal_activation_value++; // skip activation if so
         } else {
           // Проверяем, прошло ли достаточно времени с момента последней активации
-          if (last_FX_activation_time !== null && (time - last_FX_activation_time) < FX_MIN_ACTIVATION_INTERVAL) {
-            FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation++; // пропускаем активацию
-          } else {
-            last_FX_activation_time = time; // запоминаем время активации
-            is_FX_active = true;
-            FX_triggered = true;
-            FX_triggered_total++;
-          }
+          if ((last_FX_activation_time !== null) && (time - last_FX_activation_time < FX_MIN_ACTIVATION_INTERVAL)) {
+            use_quickFX_instead_of_regular = true;
+            quickFX_used_due_to_insufficient_time_since_previous_activation++;
+          } else use_quickFX_instead_of_regular = false;
+
+          last_FX_activation_time = time; // запоминаем время активации
+          is_FX_active = true;
+          FX_triggered = true;
+          FX_triggered_total++;
         }
       }
 
@@ -644,7 +646,11 @@
         time_to_revert_opacity = null;
       }
 
-      if (FX_triggered) {
+      if (FX_triggered && use_quickFX_instead_of_regular) {
+        hue += 0.125;
+      }
+
+      if (FX_triggered && !use_quickFX_instead_of_regular) {
         if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
           if (pointers[pointer_index].direction > 0 || Math.random() < FX_BOUNCE_FWD_PROBABILITY) {
             pointers[pointer_index].direction *= -1;
@@ -659,8 +665,6 @@
           effect_sequence_index = 0;
         }
         var effect_number = effects_sequence[effect_sequence_index];
-        // var prev_effect_number = effect_number;
-        // effect_number = (prev_effect_number + 1 + getRandomInt(TOTAL_EFFECTS - 1)) % TOTAL_EFFECTS;
         effect_triggered_total[effect_number]++;
 
         if (effect_number !== 1 && effect_number !== 2) opacity = 100;
@@ -946,7 +950,7 @@
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
     "FX_MIN_ACTIVATION_INTERVAL = " + FX_MIN_ACTIVATION_INTERVAL + "\n" +
-    "FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation = " + FX_activation_skipped_count_due_to_insufficient_time_since_previous_activation;
+    "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation;
 
   showScrollableDialog(script_filename, alert_message);
 
