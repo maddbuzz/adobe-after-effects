@@ -158,6 +158,9 @@
         var current_b = layer_b.inPoint - layer_b.startTime;
         var relative_a = (current_a - range_a.min) / (range_a.max - range_a.min);
         var relative_b = (current_b - range_b.min) / (range_b.max - range_b.min);
+        // // Отладка: добавляем смещение к имени слоя (только если имя не заканчивается на "_")
+        // if (layer_a.name.slice(-1) !== "_") layer_a.name += " _" + relative_a.toFixed(3) + "_";
+        // if (layer_b.name.slice(-1) !== "_") layer_b.name += " _" + relative_b.toFixed(3) + "_";
         if (relative_a < relative_b) result = -1;
         if (relative_a > relative_b) result = +1;
       }
