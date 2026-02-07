@@ -9,7 +9,7 @@
     "Перемешивание:\n" +
     "• shuffle_layers - перемешать слои случайным образом (работает независимо от сортировки)\n\n" +
     "Сортировка (определяет порядок слоев в панели слоев - какие будут ниже/выше, каскадная):\n" +
-    "• sort_by_layers_relative_offsets_in_files - сначала по относительному положению слоя в исходном файле (0..1 в диапазоне min..max использования)\n" +
+    "• sort_by_layers_relative_offsets - сначала по относительному положению слоя в исходном файле (0..1 в диапазоне min..max использования)\n" +
     "• sort_by_source_name - затем по имени исходного файла (алфавитно, если смещения одинаковые или сортировка по смещению выключена)\n" +
     "• sort_by_layers_starts_in_sources - затем по смещению начал слоев внутри их файлов (если имена одинаковые или сортировка по имени выключена)\n" +
     "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если все предыдущие критерии одинаковые)\n" +
@@ -85,7 +85,7 @@
   }
 
   create_control_if_not_exists(control_layer, "shuffle_layers", "Checkbox", true);
-  create_control_if_not_exists(control_layer, "sort_by_layers_relative_offsets_in_files", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_layers_relative_offsets", "Checkbox", true);
   create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_layers_starts_in_sources", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
@@ -96,7 +96,7 @@
   create_control_if_not_exists(control_layer, "trim_end_seconds", "Slider", 4);
 
   const shuffle_layers = get_control(control_layer, "shuffle_layers", "Checkbox").value;
-  const sort_by_layers_relative_offsets_in_files = get_control(control_layer, "sort_by_layers_relative_offsets_in_files", "Checkbox").value;
+  const sort_by_layers_relative_offsets = get_control(control_layer, "sort_by_layers_relative_offsets", "Checkbox").value;
   const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
   const sort_by_layers_starts_in_sources = get_control(control_layer, "sort_by_layers_starts_in_sources", "Checkbox").value;
   const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
@@ -146,12 +146,12 @@
     }
   }
 
-  if (sort_by_source_name || sort_by_layer_duration || sort_by_layers_starts_in_sources || sort_by_layers_relative_offsets_in_files) {
+  if (sort_by_source_name || sort_by_layer_duration || sort_by_layers_starts_in_sources || sort_by_layers_relative_offsets) {
     target_layers.sort(function (layer_a, layer_b) {
       var result = 0;
 
       // Сортировка по относительному смещению слоя внутри диапазона [0, 1] по исходному файлу (если включена)
-      if (sort_by_layers_relative_offsets_in_files) {
+      if (sort_by_layers_relative_offsets) {
         var range_a = sources_ranges[layer_a.source.name];
         var range_b = sources_ranges[layer_b.source.name];
         var current_a = layer_a.inPoint - layer_a.startTime;
