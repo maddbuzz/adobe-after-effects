@@ -9,7 +9,7 @@
     "Перемешивание:\n" +
     "• shuffle_layers - перемешать слои случайным образом (работает независимо от сортировки)\n\n" +
     "Сортировка (определяет порядок слоев в панели слоев - какие будут ниже/выше, каскадная):\n" +
-    "• sort_by_offset_from_first_layer_in_file - сначала по смещению слоя относительно первого слоя в файле\n" +
+    "• sort_by_layers_relative_offsets_in_files - сначала по относительному положению слоя в исходном файле (0..1 в диапазоне min..max использования)\n" +
     "• sort_by_source_name - затем по имени исходного файла (алфавитно, если смещения одинаковые или сортировка по смещению выключена)\n" +
     "• sort_by_layers_starts_in_sources - затем по смещению начал слоев внутри их файлов (если имена одинаковые или сортировка по имени выключена)\n" +
     "• sort_by_layer_duration - затем по текущей длительности на таймлайне (если все предыдущие критерии одинаковые)\n" +
@@ -84,9 +84,9 @@
     return effect.property(type);
   }
 
-  create_control_if_not_exists(control_layer, "shuffle_layers", "Checkbox", false);
-  create_control_if_not_exists(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox", true);
-  create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "shuffle_layers", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_layers_relative_offsets_in_files", "Checkbox", true);
+  create_control_if_not_exists(control_layer, "sort_by_source_name", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_layers_starts_in_sources", "Checkbox", false);
   create_control_if_not_exists(control_layer, "sort_by_layer_duration", "Checkbox", false);
   create_control_if_not_exists(control_layer, "reverse_sort_order", "Checkbox", false);
@@ -96,7 +96,7 @@
   create_control_if_not_exists(control_layer, "trim_end_seconds", "Slider", 4);
 
   const shuffle_layers = get_control(control_layer, "shuffle_layers", "Checkbox").value;
-  const sort_by_offset_from_first_layer_in_file = get_control(control_layer, "sort_by_offset_from_first_layer_in_file", "Checkbox").value;
+  const sort_by_layers_relative_offsets_in_files = get_control(control_layer, "sort_by_layers_relative_offsets_in_files", "Checkbox").value;
   const sort_by_source_name = get_control(control_layer, "sort_by_source_name", "Checkbox").value;
   const sort_by_layers_starts_in_sources = get_control(control_layer, "sort_by_layers_starts_in_sources", "Checkbox").value;
   const sort_by_layer_duration = get_control(control_layer, "sort_by_layer_duration", "Checkbox").value;
@@ -124,17 +124,16 @@
     return;
   }
 
-  // Находим минимальное смещение внутри исходного файла для каждого медиафайла (момент с которого медиафайл реально используется)
-  var source_min_offset = {};
+  // Находим для каждого медиафайла диапазон использования: min = начало первого слоя в этом файле, max = конец последнего слоя в этом файле
+  var sources_ranges = {}; // { [source_key]: { min: number, max: number } }
   for (var i = 0; i < target_layers.length; i++) {
     var layer = target_layers[i];
     var source_key = layer.source.name; // используем имя файла как ключ
-    var offset_in_source = layer.inPoint - layer.startTime; // смещение начала видимой части внутри исходного файла
-    if (!source_min_offset[source_key]) {
-      source_min_offset[source_key] = offset_in_source;
-    } else {
-      if (offset_in_source < source_min_offset[source_key]) source_min_offset[source_key] = offset_in_source;
-    }
+    var layer_start_in_source = layer.inPoint - layer.startTime;
+    var layer_end_in_source = layer.outPoint - layer.startTime;
+    if (!sources_ranges[source_key]) sources_ranges[source_key] = { min: layer_start_in_source, max: layer_end_in_source };
+    if (layer_start_in_source < sources_ranges[source_key].min) sources_ranges[source_key].min = layer_start_in_source;
+    if (layer_end_in_source > sources_ranges[source_key].max) sources_ranges[source_key].max = layer_end_in_source;
   }
 
   // Перемешивание слоев (если включено)
@@ -147,20 +146,20 @@
     }
   }
 
-  if (sort_by_source_name || sort_by_layer_duration || sort_by_layers_starts_in_sources || sort_by_offset_from_first_layer_in_file) {
+  if (sort_by_source_name || sort_by_layer_duration || sort_by_layers_starts_in_sources || sort_by_layers_relative_offsets_in_files) {
     target_layers.sort(function (layer_a, layer_b) {
       var result = 0;
 
-      // Сортировка по смещению слоя относительно первого слоя в файле (если включена)
-      if (sort_by_offset_from_first_layer_in_file) {
-        var first_layer_offset_in_file_a = source_min_offset[layer_a.source.name]; // смещение первого слоя в файле внутри исходного файла
-        var first_layer_offset_in_file_b = source_min_offset[layer_b.source.name]; // смещение первого слоя в файле внутри исходного файла
-        var current_layer_offset_in_file_a = layer_a.inPoint - layer_a.startTime; // смещение текущего слоя внутри исходного файла
-        var current_layer_offset_in_file_b = layer_b.inPoint - layer_b.startTime; // смещение текущего слоя внутри исходного файла
-        var offset_from_first_layer_a = current_layer_offset_in_file_a - first_layer_offset_in_file_a; // смещение текущего слоя относительно первого слоя в файле
-        var offset_from_first_layer_b = current_layer_offset_in_file_b - first_layer_offset_in_file_b; // смещение текущего слоя относительно первого слоя в файле
-        if (offset_from_first_layer_a < offset_from_first_layer_b) result = -1;
-        if (offset_from_first_layer_a > offset_from_first_layer_b) result = +1;
+      // Сортировка по относительному смещению слоя внутри диапазона [0, 1] по исходному файлу (если включена)
+      if (sort_by_layers_relative_offsets_in_files) {
+        var range_a = sources_ranges[layer_a.source.name];
+        var range_b = sources_ranges[layer_b.source.name];
+        var current_a = layer_a.inPoint - layer_a.startTime;
+        var current_b = layer_b.inPoint - layer_b.startTime;
+        var relative_a = (current_a - range_a.min) / (range_a.max - range_a.min);
+        var relative_b = (current_b - range_b.min) / (range_b.max - range_b.min);
+        if (relative_a < relative_b) result = -1;
+        if (relative_a > relative_b) result = +1;
       }
 
       // Сортировка по имени (если включена и смещения одинаковые)
