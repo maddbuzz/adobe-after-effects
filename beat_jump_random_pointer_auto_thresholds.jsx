@@ -943,6 +943,7 @@
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
+    "REGULAR FX_triggered_per_minute = " + (FX_triggered_total - quickFX_used_due_to_insufficient_time_since_previous_activation) / processed_duration_minutes + "\n" +
     "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
