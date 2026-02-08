@@ -937,7 +937,8 @@
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
-    "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation;
+    "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation + "\n" +
+    "quickFX_used / FX_triggered_total = " + quickFX_used_due_to_insufficient_time_since_previous_activation / FX_triggered_total;
 
   showScrollableDialog(script_filename, alert_message);
 
