@@ -276,7 +276,8 @@
   create_new_or_return_existing_control(beat_layer, "RANDOMIZE_POINTERS_BEFORE_START", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 8); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
   create_new_or_return_existing_control(beat_layer, "DONT_SHUFFLE_FIRST_SEQUENCE", "Checkbox", true);
-  create_new_or_return_existing_control(beat_layer, "FX_BOUNCE_FWD_PROBABILITY", "Slider", 0.5);
+  create_new_or_return_existing_control(beat_layer, "ELAPSED_BEFORE_BOUNCE_FWD", "Slider", 2);
+  create_new_or_return_existing_control(beat_layer, "ELAPSED_BEFORE_BOUNCE_BWD", "Slider", 0.5);
   create_new_or_return_existing_control(beat_layer, "MIN_BOUNCES_TO_REMOVE_POINTER", "Slider", 3); // дефолт 1
   create_new_or_return_existing_control(beat_layer, "DONT_REMOVE_POINTERS_BELOW", "Slider", 0); // если больше 0, нужно включить STOP_IF_ONLY_BOUNCED_LEFT
   create_new_or_return_existing_control(beat_layer, "STOP_IF_ONLY_BOUNCED_LEFT", "Checkbox", false); // нужно включить, если DONT_REMOVE_POINTERS_BELOW > 0
@@ -307,7 +308,8 @@
   const RANDOMIZE_POINTERS_BEFORE_START = beat_layer.effect("RANDOMIZE_POINTERS_BEFORE_START")("Checkbox").value;
   const POINTERS_SEQUENCE_SIZE = beat_layer.effect("POINTERS_SEQUENCE_SIZE")("Slider").value;
   const DONT_SHUFFLE_FIRST_SEQUENCE = beat_layer.effect("DONT_SHUFFLE_FIRST_SEQUENCE")("Checkbox").value;
-  const FX_BOUNCE_FWD_PROBABILITY = beat_layer.effect("FX_BOUNCE_FWD_PROBABILITY")("Slider").value;
+  const ELAPSED_BEFORE_BOUNCE_FWD = beat_layer.effect("ELAPSED_BEFORE_BOUNCE_FWD")("Slider").value;
+  const ELAPSED_BEFORE_BOUNCE_BWD = beat_layer.effect("ELAPSED_BEFORE_BOUNCE_BWD")("Slider").value;
   const MIN_BOUNCES_TO_REMOVE_POINTER = beat_layer.effect("MIN_BOUNCES_TO_REMOVE_POINTER")("Slider").value;
   const DONT_REMOVE_POINTERS_BELOW = beat_layer.effect("DONT_REMOVE_POINTERS_BELOW")("Slider").value;
   const STOP_IF_ONLY_BOUNCED_LEFT = beat_layer.effect("STOP_IF_ONLY_BOUNCED_LEFT")("Checkbox").value;
@@ -354,6 +356,7 @@
         target_position: end,
         direction: +1,
         bounced_total: 0,
+        last_bounce_time: null,
       });
       return pointers;
     }
@@ -377,6 +380,7 @@
         target_position: current_time + desired_length_seconds,
         direction: +1,
         bounced_total: 0,
+        last_bounce_time: null,
       });
 
       current_time += desired_length_seconds;
@@ -598,12 +602,18 @@
       current_position += time_increment * direction;
       if (current_position >= target_position) {
         current_position = target_position - frame_duration;
-        if (direction > 0) pointers[pointer_index].bounced_total++;
+        if (direction > 0) {
+          pointers[pointer_index].bounced_total++;
+          pointers[pointer_index].last_bounce_time = time;
+        }
         pointers[pointer_index].direction = -1;
       }
       if (current_position <= starting_position) {
         current_position = starting_position + frame_duration; // "+ frame_duration" потому что был случай, когда показывался при баунсе последний кадр предыдущего клипа в таймлайне
-        if (direction < 0) pointers[pointer_index].bounced_total++;
+        if (direction < 0) {
+          pointers[pointer_index].bounced_total++;
+          pointers[pointer_index].last_bounce_time = time;
+        }
         pointers[pointer_index].direction = +1;
       }
       if (bounced_total_max < pointers[pointer_index].bounced_total) {
@@ -652,9 +662,14 @@
 
       if (FX_triggered && !use_quickFX_instead_of_regular) {
         if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
-          if (pointers[pointer_index].direction > 0 || Math.random() < FX_BOUNCE_FWD_PROBABILITY) {
+          var elapsed_since_last_bounce = time - pointers[pointer_index].last_bounce_time;
+          if (
+            (pointers[pointer_index].direction > 0 && elapsed_since_last_bounce >= ELAPSED_BEFORE_BOUNCE_BWD) ||
+            (pointers[pointer_index].direction < 0 && elapsed_since_last_bounce >= ELAPSED_BEFORE_BOUNCE_FWD)
+          ) {
             pointers[pointer_index].direction *= -1;
             pointers[pointer_index].bounced_total++; // это тоже баунс, хоть и не от краев
+            pointers[pointer_index].last_bounce_time = time;
           }
         }
 
@@ -698,36 +713,6 @@
           pointers_counters[prev_pointer_number]++;
 
           var spliced = false;
-          /*
-            *** ПРОБНЫЕ ЗАМЕРЫ (при FX_BOUNCE_FWD_PROBABILITY = 0.5) ***
-            MIN_BOUNCES_TO_REMOVE_POINTER = 1
-            unique_to_total_ratio = 0.87874758010376
-            00:33:55 50: -1.0мин, 1/1ук
-
-            MIN_BOUNCES_TO_REMOVE_POINTER = 2
-            unique_to_total_ratio = 0.84120230386146
-            00:35:07 50: -1.0мин, 1/1ук
-
-            MIN_BOUNCES_TO_REMOVE_POINTER = 3
-            unique_to_total_ratio = 0.8397978613546
-            00:35:09 50: -1.0мин, 1/1ук
-
-            MIN_BOUNCES_TO_REMOVE_POINTER = 4
-            unique_to_total_ratio = 0.79165614663252
-            00:37:08 52: -1.0мин, 1/1ук
-
-            MIN_BOUNCES_TO_REMOVE_POINTER = 5
-            unique_to_total_ratio = 0.78905980737349
-            00:37:16 60: -1.0мин, 1/1ук
-
-            MIN_BOUNCES_TO_REMOVE_POINTER = 6
-            unique_to_total_ratio = 0.72436198012708
-            00:40:23 60: -1.0мин, 1/1ук
-
-            MIN_BOUNCES_TO_REMOVE_POINTER = 7
-            unique_to_total_ratio = 0.73101777986311
-            00:40:12 54: -1.0мин, 1/1ук
-          */
           // if (pointers[pointer_index].bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
           if (old_bounced_total >= MIN_BOUNCES_TO_REMOVE_POINTER) {
             if (pointers.length > DONT_REMOVE_POINTERS_BELOW) {
@@ -913,7 +898,8 @@
     "RANDOMIZE_POINTERS_BEFORE_START = " + RANDOMIZE_POINTERS_BEFORE_START + "\n" +
     "POINTERS_SEQUENCE_SIZE = " + POINTERS_SEQUENCE_SIZE + "\n" +
     "DONT_SHUFFLE_FIRST_SEQUENCE = " + DONT_SHUFFLE_FIRST_SEQUENCE + "\n" +
-    "FX_BOUNCE_FWD_PROBABILITY = " + FX_BOUNCE_FWD_PROBABILITY + "\n" +
+    "ELAPSED_BEFORE_BOUNCE_FWD = " + ELAPSED_BEFORE_BOUNCE_FWD + "\n" +
+    "ELAPSED_BEFORE_BOUNCE_BWD = " + ELAPSED_BEFORE_BOUNCE_BWD + "\n" +
     "MIN_BOUNCES_TO_REMOVE_POINTER = " + MIN_BOUNCES_TO_REMOVE_POINTER + "\n" +
     "DONT_REMOVE_POINTERS_BELOW = " + DONT_REMOVE_POINTERS_BELOW + "\n" +
     "STOP_IF_ONLY_BOUNCED_LEFT = " + STOP_IF_ONLY_BOUNCED_LEFT + "\n" +
