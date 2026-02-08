@@ -276,8 +276,8 @@
   create_new_or_return_existing_control(beat_layer, "RANDOMIZE_POINTERS_BEFORE_START", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "POINTERS_SEQUENCE_SIZE", "Slider", 8); // при 60 эффектах/минуту (и 4 эффектах всего) будет в среднем 60/4=15 переключений указателей в минуту
   create_new_or_return_existing_control(beat_layer, "DONT_SHUFFLE_FIRST_SEQUENCE", "Checkbox", true);
-  create_new_or_return_existing_control(beat_layer, "ELAPSED_BEFORE_BOUNCE_FWD", "Slider", 2);
-  create_new_or_return_existing_control(beat_layer, "ELAPSED_BEFORE_BOUNCE_BWD", "Slider", 0.5);
+  create_new_or_return_existing_control(beat_layer, "ELAPSED_BEFORE_BOUNCE_FWD", "Slider", 1);
+  create_new_or_return_existing_control(beat_layer, "ELAPSED_BEFORE_BOUNCE_BWD", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "MIN_BOUNCES_TO_REMOVE_POINTER", "Slider", 3); // дефолт 1
   create_new_or_return_existing_control(beat_layer, "DONT_REMOVE_POINTERS_BELOW", "Slider", 0); // если больше 0, нужно включить STOP_IF_ONLY_BOUNCED_LEFT
   create_new_or_return_existing_control(beat_layer, "STOP_IF_ONLY_BOUNCED_LEFT", "Checkbox", false); // нужно включить, если DONT_REMOVE_POINTERS_BELOW > 0
