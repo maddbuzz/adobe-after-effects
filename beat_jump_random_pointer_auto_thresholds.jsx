@@ -481,6 +481,7 @@
   const pointers_counters = []; for (var i = 0; i < pointers_number_before; i++) pointers_counters[i] = 0;
   var bounced_total_max = 0;
   var bounced_total_max_time = null;
+  var all_pointers_bounced_once_at = null;
 
   var unique_accumulated_time = 0;
   var total_accumulated_time = 0;
@@ -620,6 +621,11 @@
         bounced_total_max = pointers[pointer_index].bounced_total;
         bounced_total_max_time = time;
       }
+      if (all_pointers_bounced_once_at === null && all_pointers_bounced(pointers, 1)) all_pointers_bounced_once_at = time;
+      if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
+        time_processing_stopped_at = time;
+        break;
+      }
       pointers[pointer_index].current_position = current_position;
 
       var position_diff = Math.abs(current_position - old_current_position);
@@ -721,12 +727,6 @@
             }
           }
           if (!spliced) pointer_index += 1;
-
-          if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
-          // if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, 1)) {
-            time_processing_stopped_at = time;
-            break;
-          }
 
           if (pointers.length <= POINTERS_LEFT_TO_STOP) {
             time_processing_stopped_at = time;
@@ -936,6 +936,7 @@
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
+    "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
     "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation + "\n" +
     "quickFX_used / FX_triggered_total = " + quickFX_used_due_to_insufficient_time_since_previous_activation / FX_triggered_total;
