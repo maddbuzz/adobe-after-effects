@@ -722,8 +722,8 @@
           }
           if (!spliced) pointer_index += 1;
 
-          // if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
-          if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, 1)) {
+          if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
+          // if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, 1)) {
             time_processing_stopped_at = time;
             break;
           }
