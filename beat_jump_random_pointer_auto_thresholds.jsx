@@ -853,7 +853,7 @@
   const unique_to_total_ratio = total_accumulated_time > 0 ? unique_accumulated_time / total_accumulated_time : 0;
   const total_accumulated_time_per_effect3 = effect_triggered_total[3] > 0 ? total_accumulated_time / effect_triggered_total[3] : 0;
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
-  const processed_duration_minutes = time_processing_stopped_at !== null ? time_processing_stopped_at / 60 : work_area_duration_minutes;
+  const processed_duration_minutes = time_processing_stopped_at !== null ? (time_processing_stopped_at - work_start_time) / 60 : work_area_duration_minutes;
 
   // Формируем построчный вывод последовательностей
   var pointer_sequences_stats_lines = [];
