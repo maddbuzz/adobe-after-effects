@@ -733,7 +733,8 @@
               if (time_pointers_reach_threshold === null) time_pointers_reach_threshold = time;
             }
           }
-          if (!spliced) pointer_index += 1;
+          // _if (!spliced) pointer_index += 1; // <- это исскуственно удлиняло длину последовательности при коротких сегментах!
+          pointer_index += 1; // <- безусловно, если хотим постоянную длину последовательности!
 
           if (pointers.length <= POINTERS_LEFT_TO_STOP) {
             time_processing_stopped_at = time;
