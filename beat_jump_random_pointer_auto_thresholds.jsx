@@ -545,6 +545,8 @@
   }
 
   var time_processing_stopped_at = null;
+  var time_pointers_reach_threshold = null;
+  var time_only_bounced_left = null;
   for (var batch_start = 0; batch_start < work_total_frames; batch_start += frames_batch_size) {
     if (time_processing_stopped_at !== null) break;
 
@@ -622,9 +624,12 @@
         bounced_total_max_time = time;
       }
       if (all_pointers_bounced_once_at === null && all_pointers_bounced(pointers, 1)) all_pointers_bounced_once_at = time;
-      if (STOP_IF_ONLY_BOUNCED_LEFT && all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
-        time_processing_stopped_at = time;
-        break;
+      if (all_pointers_bounced(pointers, MIN_BOUNCES_TO_REMOVE_POINTER)) {
+        if (time_only_bounced_left === null) time_only_bounced_left = time;
+        if (STOP_IF_ONLY_BOUNCED_LEFT) {
+          time_processing_stopped_at = time;
+          break;
+        }
       }
       pointers[pointer_index].current_position = current_position;
 
@@ -724,6 +729,8 @@
             if (pointers.length > DONT_REMOVE_POINTERS_BELOW) {
               pointers.splice(pointer_index, 1);
               spliced = true;
+            } else {
+              if (time_pointers_reach_threshold === null) time_pointers_reach_threshold = time;
             }
           }
           if (!spliced) pointer_index += 1;
@@ -878,18 +885,22 @@
   var alert_message =
     script_filename + "\n" +
     "script_total_time = " + script_total_time + "\n" +
-    "setValuesAtTimes_total_time = " + setValuesAtTimes_total_time + "\n" +
-    "setValuesAtTimes_called_times = " + setValuesAtTimes_called_times + "\n" +
-    "frames_batch_size = " + frames_batch_size + "\n" +
+    // "setValuesAtTimes_total_time = " + setValuesAtTimes_total_time + "\n" +
+    // "setValuesAtTimes_called_times = " + setValuesAtTimes_called_times + "\n" +
+    // "frames_batch_size = " + frames_batch_size + "\n" +
     "inputs_ABC_max_value = " + inputs_ABC_max_value + "\n" +
     "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
     "activate_avg_max = " + activate_avg_max + "\n" +
-    "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
-    "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
-    "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
-    "scale_ADSR_release = " + scale_ADSR_release + "\n" +
-    "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
+    "FX_triggered_total = " + FX_triggered_total + "\n" +
+    "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
+    "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - quickFX_used_due_to_insufficient_time_since_previous_activation) / processed_duration_minutes + "\n" +
+    "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
+    // "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
+    // "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
+    // "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
+    // "scale_ADSR_release = " + scale_ADSR_release + "\n" +
+    // "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
     "speed_max = " + speed_max + "\n" +
     "speed_avg = " + speed_avg + "\n" +
     "speed_min = " + speed_min + "\n" +
@@ -902,7 +913,9 @@
     "ELAPSED_BEFORE_BOUNCE_BWD = " + ELAPSED_BEFORE_BOUNCE_BWD + "\n" +
     "MIN_BOUNCES_TO_REMOVE_POINTER = " + MIN_BOUNCES_TO_REMOVE_POINTER + "\n" +
     "DONT_REMOVE_POINTERS_BELOW = " + DONT_REMOVE_POINTERS_BELOW + "\n" +
+    (time_pointers_reach_threshold ? "time_pointers_reach_threshold = " + formatTime(time_pointers_reach_threshold) + "\n" : "") +
     "STOP_IF_ONLY_BOUNCED_LEFT = " + STOP_IF_ONLY_BOUNCED_LEFT + "\n" +
+    (time_only_bounced_left !== null ? "time_only_bounced_left = " + formatTime(time_only_bounced_left) + "\n" : "") +
     "STOP_AFTER_SEQUENCES = " + STOP_AFTER_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
@@ -927,10 +940,6 @@
     "total_accumulated_time / processed_duration = " + total_accumulated_time_minutes / processed_duration_minutes + "\n" +
     "processed_duration / video_duration = " + processed_duration_minutes / video_duration_minutes + "\n" +
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
-    "FX_triggered_total = " + FX_triggered_total + "\n" +
-    "FX_triggered_per_minute = " + FX_triggered_total / processed_duration_minutes + "\n" +
-    "REGULAR FX_triggered_per_minute = " + (FX_triggered_total - quickFX_used_due_to_insufficient_time_since_previous_activation) / processed_duration_minutes + "\n" +
-    "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
