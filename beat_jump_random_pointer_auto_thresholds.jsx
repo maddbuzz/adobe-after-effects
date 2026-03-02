@@ -941,6 +941,20 @@
     "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation + "\n" +
     "quickFX_used / FX_triggered_total = " + quickFX_used_due_to_insufficient_time_since_previous_activation / FX_triggered_total;
 
+  // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
+  var projectFile = app.project.file;
+  var parentFolder = projectFile.parent;
+  var baseName = projectFile.name.replace(/\.aep$/i, "");
+  var statsPath = parentFolder.fsName + "/" + baseName + ".stats.txt";
+  var statsFile = new File(statsPath);
+  if (statsFile.open("w")) {
+    statsFile.encoding = "UTF-8";
+    statsFile.write(alert_message);
+    statsFile.close();
+  } else {
+    alert("Не удалось сохранить статистику в:\n" + statsPath);
+  }
+
   showScrollableDialog(script_filename, alert_message);
 
 })();
