@@ -947,6 +947,13 @@
   var baseName = projectFile.name.replace(/\.aep$/i, "");
   var statsPath = parentFolder.fsName + "/" + baseName + ".stats.txt";
   var statsFile = new File(statsPath);
+  if (statsFile.exists) {
+    var prevPath = parentFolder.fsName + "/" + baseName + ".prev_stats.txt";
+    var prevFile = new File(prevPath);
+    if (prevFile.exists) prevFile.remove();
+    statsFile.rename(prevFile);
+    statsFile = new File(statsPath);
+  }
   if (statsFile.open("w")) {
     statsFile.encoding = "UTF-8";
     statsFile.write(alert_message);
