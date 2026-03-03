@@ -154,15 +154,21 @@
       if (sort_by_layers_relative_offsets) {
         var range_a = sources_ranges[layer_a.source.name];
         var range_b = sources_ranges[layer_b.source.name];
-        var current_a = layer_a.inPoint - layer_a.startTime;
-        var current_b = layer_b.inPoint - layer_b.startTime;
-        var relative_a = (current_a - range_a.min) / (range_a.max - range_a.min);
-        var relative_b = (current_b - range_b.min) / (range_b.max - range_b.min);
-        // // Отладка: добавляем смещение к имени слоя (только если имя не заканчивается на "_")
-        // if (layer_a.name.slice(-1) !== "_") layer_a.name += " _" + relative_a.toFixed(3) + "_";
-        // if (layer_b.name.slice(-1) !== "_") layer_b.name += " _" + relative_b.toFixed(3) + "_";
-        if (relative_a < relative_b) result = -1;
-        if (relative_a > relative_b) result = +1;
+        var start_a = layer_a.inPoint - layer_a.startTime;
+        var start_b = layer_b.inPoint - layer_b.startTime;
+        var relative_start_a = (start_a - range_a.min) / (range_a.max - range_a.min);
+        var relative_start_b = (start_b - range_b.min) / (range_b.max - range_b.min);
+
+        // Если включен shuffle_layers и слой один единственный во всем файле, то он получает рандомное значение:
+        if (shuffle_layers) {
+          var end_a = layer_a.outPoint - layer_a.startTime;
+          var end_b = layer_b.outPoint - layer_b.startTime;
+          if (start_a === range_a.min && end_a === range_a.max) relative_start_a = Math.random();
+          if (start_b === range_b.min && end_b === range_b.max) relative_start_b = Math.random();
+        }
+
+        if (relative_start_a < relative_start_b) result = -1;
+        if (relative_start_a > relative_start_b) result = +1;
       }
 
       // Сортировка по имени (если включена и смещения одинаковые)
