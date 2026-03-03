@@ -470,6 +470,7 @@
     else randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
   }
   var pointer_index = 0; // getRandomInt(pointers.length);
+  var pointers_played_in_sequence = 0;
 
   var pointer_sequences_stats = [{
     start_time_seconds: work_start_time,
@@ -733,8 +734,8 @@
               if (time_pointers_reach_threshold === null) time_pointers_reach_threshold = time;
             }
           }
-          // _if (!spliced) pointer_index += 1; // <- это исскуственно удлиняло длину последовательности при коротких сегментах!
-          pointer_index += 1; // <- безусловно, если хотим постоянную длину последовательности!
+          if (!spliced) pointer_index += 1; // не увеличиваем, если вырезали сегмент, т.к. на его место встал следующий...
+          pointers_played_in_sequence += 1; // ...а вот счетчик сыгранных увеличиваем всегда!
 
           if (pointers.length <= POINTERS_LEFT_TO_STOP) {
             time_processing_stopped_at = time;
@@ -745,15 +746,18 @@
             pointers = get_pointers();
             randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
             pointer_index = 0;
+            pointers_played_in_sequence = 0;
           }
 
           var real_sequence_size = POINTERS_SEQUENCE_SIZE > 0
             ? Math.min(POINTERS_SEQUENCE_SIZE, pointers.length)
             : pointers.length;
-          if (pointer_index >= real_sequence_size) {
+          //_if (pointer_index >= real_sequence_size) {
+          if (pointers_played_in_sequence >= real_sequence_size) {
             do {
               randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
               pointer_index = 0;
+              pointers_played_in_sequence = 0;
             } while (pointers.length > 1 && pointers[pointer_index].number === prev_pointer_number);
 
             pointer_sequences_stats[pointer_sequences_stats.length - 1].duration_minutes = (time - pointer_sequences_stats[pointer_sequences_stats.length - 1].start_time_seconds) / 60;
