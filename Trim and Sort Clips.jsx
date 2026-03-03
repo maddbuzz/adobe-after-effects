@@ -146,6 +146,8 @@
     }
   }
 
+  var single_clip_random_key = {};
+
   if (sort_by_source_name || sort_by_layer_duration || sort_by_layers_starts_in_sources || sort_by_layers_relative_offsets) {
     target_layers.sort(function (layer_a, layer_b) {
       var result = 0;
@@ -159,12 +161,18 @@
         var relative_start_a = (start_a - range_a.min) / (range_a.max - range_a.min);
         var relative_start_b = (start_b - range_b.min) / (range_b.max - range_b.min);
 
-        // Если включен shuffle_layers и слой один единственный во всем файле, то он получает рандомное значение:
+        // Если включен shuffle_layers и слой один единственный во всем файле, то он получает рандомное значение (сохраняем):
         if (shuffle_layers) {
           var end_a = layer_a.outPoint - layer_a.startTime;
           var end_b = layer_b.outPoint - layer_b.startTime;
-          if (start_a === range_a.min && end_a === range_a.max) relative_start_a = Math.random();
-          if (start_b === range_b.min && end_b === range_b.max) relative_start_b = Math.random();
+          if (start_a === range_a.min && end_a === range_a.max) {
+            if (single_clip_random_key[layer_a.source.name] === undefined) single_clip_random_key[layer_a.source.name] = Math.random();
+            relative_start_a = single_clip_random_key[layer_a.source.name];
+          }
+          if (start_b === range_b.min && end_b === range_b.max) {
+            if (single_clip_random_key[layer_b.source.name] === undefined) single_clip_random_key[layer_b.source.name] = Math.random();
+            relative_start_b = single_clip_random_key[layer_b.source.name];
+          }
         }
 
         if (relative_start_a < relative_start_b) result = -1;
