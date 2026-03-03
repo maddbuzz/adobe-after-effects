@@ -752,8 +752,7 @@
           var real_sequence_size = POINTERS_SEQUENCE_SIZE > 0
             ? Math.min(POINTERS_SEQUENCE_SIZE, pointers.length)
             : pointers.length;
-          //_if (pointer_index >= real_sequence_size) {
-          if (pointers_played_in_sequence >= real_sequence_size) {
+          if (pointer_index >= real_sequence_size || pointers_played_in_sequence >= real_sequence_size) {
             do {
               randomize_pointers(pointers, POINTERS_SEQUENCE_SIZE);
               pointer_index = 0;
