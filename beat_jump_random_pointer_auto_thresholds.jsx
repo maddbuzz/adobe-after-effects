@@ -499,8 +499,8 @@
   var FX_triggered_total = 0;
   var is_FX_active = false;
   var last_FX_activation_time = null;
-  var use_quickFX_instead_of_regular = false;
-  var quickFX_used_due_to_insufficient_time_since_previous_activation = 0;
+  // var use_quickFX_instead_of_regular = false;
+  var FX_triggered_but_skipped = 0;
   const windows_stats_values = [];
 
   var scale_ADSR_activation_time = null;
@@ -648,18 +648,20 @@
         input_C_deactivation_value = lerp(window_stats.min, window_stats.avg, deactivate_min_avg);
 
         if (input_C_deactivation_value >= input_C_activation_value) {
-          input_C_deactivation_value_equal_activation_value++; // skip activation if so
+          input_C_deactivation_value_equal_activation_value++; // skip if so
         } else {
+          FX_triggered_total++;
           // Проверяем, прошло ли достаточно времени с момента последней активации
           if ((last_FX_activation_time !== null) && (time - last_FX_activation_time < REGULAR_FX_MIN_ACTIVATION_INTERVAL)) {
-            use_quickFX_instead_of_regular = true;
-            quickFX_used_due_to_insufficient_time_since_previous_activation++;
-          } else use_quickFX_instead_of_regular = false;
+            // use_quickFX_instead_of_regular = true;
+            FX_triggered_but_skipped++;
+          } else {
+            // use_quickFX_instead_of_regular = false;
 
-          last_FX_activation_time = time; // запоминаем время активации
-          is_FX_active = true;
-          FX_triggered = true;
-          FX_triggered_total++;
+            last_FX_activation_time = time; // запоминаем время активации
+            is_FX_active = true;
+            FX_triggered = true;
+          }
         }
       }
 
@@ -668,11 +670,11 @@
         time_to_revert_opacity = null;
       }
 
-      if (FX_triggered && use_quickFX_instead_of_regular) {
-        hue += 0.125;
-      }
-
-      if (FX_triggered && !use_quickFX_instead_of_regular) {
+      // if (FX_triggered && use_quickFX_instead_of_regular) {
+      //   hue += 0.125;
+      // }
+      // if (FX_triggered && !use_quickFX_instead_of_regular) {
+      if (FX_triggered) {
         if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
           var elapsed_since_last_bounce = time - pointers[pointer_index].last_bounce_time;
           if (
@@ -898,8 +900,8 @@
     "activate_avg_max = " + activate_avg_max + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
-    "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - quickFX_used_due_to_insufficient_time_since_previous_activation) / processed_duration_minutes + "\n" +
-    "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
+    "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
+    // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     // "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
     // "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
     // "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
@@ -951,8 +953,8 @@
     pointer_sequences_stats_output + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
-    "quickFX_used_due_to_insufficient_time_since_previous_activation = " + quickFX_used_due_to_insufficient_time_since_previous_activation + "\n" +
-    "quickFX_used / FX_triggered_total = " + quickFX_used_due_to_insufficient_time_since_previous_activation / FX_triggered_total;
+    "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
+    "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total;
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
   var projectFile = app.project.file;
