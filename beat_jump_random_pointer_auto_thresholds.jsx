@@ -892,18 +892,21 @@
     : "pointer_sequences_stats: (empty)\n";
 
   var alert_message =
-    script_filename + "\n" +
+    // script_filename + "\n" +
     "script_total_time = " + script_total_time + "\n" +
     // "setValuesAtTimes_total_time = " + setValuesAtTimes_total_time + "\n" +
     // "setValuesAtTimes_called_times = " + setValuesAtTimes_called_times + "\n" +
     // "frames_batch_size = " + frames_batch_size + "\n" +
-    "inputs_ABC_max_value = " + inputs_ABC_max_value + "\n" +
-    "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
+    // "inputs_ABC_max_value = " + inputs_ABC_max_value + "\n" +
+    // "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
     "activate_avg_max = " + activate_avg_max + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
+    "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
+    "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total + "\n" +
     "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
     "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
+    "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
     // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     // "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
     // "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
@@ -913,7 +916,7 @@
     "speed_max = " + speed_max + "\n" +
     "speed_avg = " + speed_avg + "\n" +
     "speed_min = " + speed_min + "\n" +
-    "S_WarpFishEye_Amount_neg_max = " + S_WarpFishEye_Amount_neg_max + "\n" +
+    // "S_WarpFishEye_Amount_neg_max = " + S_WarpFishEye_Amount_neg_max + "\n" +
     "desired_pointer_length_seconds = " + desired_pointer_length_seconds + "\n" +
     "RANDOMIZE_POINTERS_BEFORE_START = " + RANDOMIZE_POINTERS_BEFORE_START + "\n" +
     "POINTERS_SEQUENCE_SIZE = " + POINTERS_SEQUENCE_SIZE + "\n" +
@@ -954,10 +957,7 @@
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
-    "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n" +
-    "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
-    "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
-    "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total;
+    "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
   var projectFile = app.project.file;
