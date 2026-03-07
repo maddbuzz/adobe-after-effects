@@ -109,7 +109,10 @@
     for (var layer_index = child_composition.numLayers; layer_index >= 1; layer_index--) {
       var layer = child_composition.layer(layer_index);
 
-      if (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) {  // это именно видеоклип
+      if (
+        (layer instanceof AVLayer && layer.source instanceof FootageItem && layer.source.mainSource instanceof FileSource && layer.source.mainSource.file) ||  // видеоклип из файла
+        (layer instanceof AVLayer && layer.source instanceof CompItem)  // слой-композиция (прекомп)
+      ) {
         // пропускаем невидимые слои (с выключенным "глазиком")
         if (!layer.enabled) {
           skipped_disabled_layers_count++;
