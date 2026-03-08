@@ -145,6 +145,64 @@
     else return 0;
   }
 
+  /**
+   * Ограничитель скорости изменения сигнала (slew rate limiter).
+   * input — входной сигнал (любое число, внутри ограничивается state.input_min, state.input_max).
+   * time_seconds — текущее время в секундах; на каждом кадре должен быть не меньше значения на предыдущем вызове (вызовы без пропусков кадров).
+   * state — объект с полями:
+   *   input_min, input_max — границы входа (input_min <= input_max);
+   *   attack_rate — макс. скорость роста выхода, единиц/сек (должен быть > 0);
+   *   decay_rate — макс. скорость спада выхода, единиц/сек (должен быть > 0);
+   *   при первом вызове в state записываются last_output, last_time.
+   * Возвращает output в пределах [input_min, input_max], который не меняется быстрее заданных скоростей.
+   */
+  function rate_limit_signal(input, time_seconds, state) {
+    var clamped = clamp(input, state.input_min, state.input_max);
+    if (state.last_time === undefined) {
+      state.last_output = clamped;
+      state.last_time = time_seconds;
+      return clamped;
+    }
+    var dt = time_seconds - state.last_time;
+    var max_rise = state.attack_rate * dt;
+    var max_fall = state.decay_rate * dt;
+    var out;
+    if (clamped > state.last_output) {
+      out = Math.min(clamped, state.last_output + max_rise);
+    } else {
+      out = Math.max(clamped, state.last_output - max_fall);
+    }
+    state.last_output = out;
+    state.last_time = time_seconds;
+    return out;
+  }
+
+  /**
+   * Эмуляция конденсатора (RC-фильтр первого порядка): выход экспоненциально стремится к входу.
+   * input — входной сигнал (любое число, внутри ограничивается state.input_min, state.input_max).
+   * time_seconds — текущее время в секундах; на каждом кадре должен быть не меньше значения на предыдущем вызове (вызовы без пропусков кадров).
+   * state — объект с полями:
+   *   tau — постоянная времени в секундах (должна быть > 0); чем больше tau, тем медленнее выход догоняет вход;
+   *   input_min, input_max — границы входа и выхода (input_min <= input_max);
+   *   при первом вызове в state записываются last_output, last_time.
+   * Возвращает output в пределах [input_min, input_max].
+   */
+  function rc_signal(input, time_seconds, state) {
+    var clamped = clamp(input, state.input_min, state.input_max);
+    if (state.last_time === undefined) {
+      state.last_output = clamped;
+      state.last_time = time_seconds;
+      return clamped;
+    }
+    var dt = time_seconds - state.last_time;
+    var tau = state.tau;
+    var coeff = 1 - Math.exp(-dt / tau);
+    var out = state.last_output + (clamped - state.last_output) * coeff;
+    state.last_output = out;
+    state.last_time = time_seconds;
+    return out;
+  }
+
   function getBaseLog(x, y) {
     return Math.log(y) / Math.log(x);
   }
@@ -248,9 +306,15 @@
   }
 
   function remove_all_markers_from_layer(layer) {
+    var comp = layer.containingComp;
+    var work_start = comp.workAreaStart;
+    var work_end = comp.workAreaStart + comp.workAreaDuration;
     var markerProp = layer.marker;
     for (var i = markerProp.numKeys; i >= 1; i--) {
-      markerProp.removeKey(i);
+      var t = markerProp.keyTime(i);
+      if (t >= work_start && t < work_end) {
+        markerProp.removeKey(i);
+      }
     }
   }
 
@@ -290,11 +354,11 @@
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.2); // scale_ADSR_attack + scale_ADSR_delay ?
-  create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
-  create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
-  create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // seconds
+  create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.08333); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
+  // create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.1); // seconds
+  // create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // seconds
+  // create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // [0, 1]
+  // create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
@@ -325,10 +389,10 @@
   const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
   const REGULAR_FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("REGULAR_FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
-  const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
-  const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
-  const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
-  const scale_ADSR_release = beat_layer.effect("scale_ADSR_release")("Slider").value;
+  // const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
+  // const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
+  // const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
+  // const scale_ADSR_release = beat_layer.effect("scale_ADSR_release")("Slider").value;
   const scale_MAX_amplitude = beat_layer.effect("scale_MAX_amplitude")("Slider").value;
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
   const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
@@ -525,6 +589,7 @@
   const TOTAL_EFFECTS = 4; // 0 - horizontal inversion, 1 - scale forward then backward, 2 - opacity, 3 - jump in time
   var effects_sequence = get_random_permutation(TOTAL_EFFECTS - 1);
   var effect_sequence_index = 0;
+  var effect_number = undefined;
   const effect_triggered_total = []; for (var i = 0; i < TOTAL_EFFECTS; i++) effect_triggered_total[i] = 0;
   const effect_triggered_values = [];
 
@@ -535,8 +600,8 @@
   var FX_triggered_but_skipped = 0;
   const windows_stats_values = [];
 
-  var scale_ADSR_activation_time = null;
-  var scale_ADSR_deactivation_time = null;
+  // var scale_ADSR_activation_time = null;
+  // var scale_ADSR_deactivation_time = null;
   // var center_point_x = work_width / 2;
   // var center_point_y = work_height / 2;
 
@@ -579,6 +644,28 @@
 
   if (CLEAR_FX_MARKERS) remove_all_markers_from_layer(beat_layer);
 
+  // var input_C_rate_limit_state = {
+  //   input_min: inputs_ABC_min_value,
+  //   input_max: inputs_ABC_max_value,
+  //   attack_rate: (inputs_ABC_max_value - inputs_ABC_min_value) / 0.1,
+  //   decay_rate: (inputs_ABC_max_value - inputs_ABC_min_value) / 0.4,
+  // };
+
+  var scale = 100;
+
+  var scale_rate_limit_state = {
+    input_min: 100,
+    input_max: 200,
+    attack_rate: (200 - 100) / 0.1,
+    decay_rate: (200 - 100) / 0.1,
+  };
+  var scale_rc_signal_state = {
+    input_min: 100,
+    input_max: 200,
+    // tau: 0.144, // на выходе было 100, а на входе стало 200 - при каком тау будет достигнуто 150 за 0.1 секунды (τ ≈ 0.144 с)
+    tau: 0.072, // на выходе было 100, а на входе стало 200 - при каком тау будет достигнуто 150 за 0.05 секунды (τ ≈ 0.072 с)
+  };
+
   var time_processing_stopped_at = null;
   var time_pointers_reach_threshold = null;
   var time_only_bounced_left = null;
@@ -619,6 +706,7 @@
         break;
       }
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
+      // rate_limited_input_C_value = rate_limit_signal(input_C_value, time, input_C_rate_limit_state);
 
       if (!is_FX_active) {
         input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
@@ -721,13 +809,12 @@
           }
         }
 
-        var prev_effect_number = effects_sequence[effect_sequence_index];
         effect_sequence_index += 1;
         if (effect_sequence_index >= TOTAL_EFFECTS) {
           fisher_yates_shuffle(effects_sequence);
           effect_sequence_index = 0;
         }
-        var effect_number = effects_sequence[effect_sequence_index];
+        effect_number = effects_sequence[effect_sequence_index];
         effect_triggered_total[effect_number]++;
 
         if (SET_FX_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number);
@@ -739,11 +826,13 @@
           sgn *= -1;
         }
         else if (effect_number === 1) { // scale forward then backward
+          /* TODO remove ? * 
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
           // center_point_x = getRandomInRange(0, work_width);
           // center_point_y = getRandomInRange(0, work_height);
           time_to_revert_opacity = time + scale_ADSR_attack;
+          /* */
         }
         else if (effect_number === 2) { // opacity
           time_to_revert_opacity = null;
@@ -818,10 +907,26 @@
         }
       }
 
+      /* TODO remove ? *
       var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
       var scale_ADSR_amplitude = scale_MAX_amplitude * scale_ADSR_normalized;
       var scale = 100 + scale_ADSR_amplitude;
       var signed_scale = sgn * scale;
+      /* */
+      /* */
+      if (effect_number === 1) {
+        // GOOD // scale = lerp(100, 200, (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value));
+        scale = lerp(
+          100,
+          200,
+          (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
+        );
+      } else scale = 100;
+      // var rate_limited_scale = rate_limit_signal(scale, time, scale_rate_limit_state);
+      // var signed_scale = sgn * rate_limited_scale;
+      var rc_signal_scale = rc_signal(scale, time, scale_rc_signal_state);
+      var signed_scale = sgn * rc_signal_scale;
+      /* */
 
       if (!warp_inputs) warp_inputs = window_stats;
       if (warp_inputs.max - warp_inputs.min !== 0) {
