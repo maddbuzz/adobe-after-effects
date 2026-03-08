@@ -255,8 +255,8 @@
   const video_end_time = videoComp.duration;
   const frame_duration = 1.0 / beatComp.frameRate;
   const work_start_time = beatComp.workAreaStart;
-  const work_end_time = work_start_time + beatComp.workAreaDuration;
-  const work_total_frames = Math.floor((work_end_time - work_start_time) / frame_duration) + 1;
+  const work_end_time = beatComp.workAreaStart + beatComp.workAreaDuration;
+  const work_total_frames = beatComp.workAreaDuration * beatComp.frameRate;
   const work_width = beatComp.width;
   const work_height = beatComp.height;
 
@@ -901,9 +901,10 @@
     // "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
     "activate_avg_max = " + activate_avg_max + "\n" +
+    "auto_correction_window SECONDS = " + auto_correction_window + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
-    "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total + "\n" +
+    // "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total + "\n" +
     "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
     "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
@@ -937,7 +938,6 @@
     "bounced_total_max = " + bounced_total_max + "\n" +
     (bounced_total_max_time !== null ? "bounced_total_max_time = " + formatTime(bounced_total_max_time) + "\n" : "") +
     "hue_drift = " + hue_drift + "\n" +
-    "auto_correction_window = " + auto_correction_window + "\n" +
     "get_pointers_called = " + get_pointers_called + "\n" +
     "randomize_pointers_called = " + randomize_pointers_called + "\n" +
     "pointers_number_before = " + pointers_number_before + "\n" +
