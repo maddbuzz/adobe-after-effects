@@ -229,6 +229,31 @@
     return effect.property(type); // <- возвращаем property, а не effect - иначе setValuesAtTimes работать не будет!
   }
 
+  function set_effect_marker_on_layer(layer, time, effect_number) {
+    // Цвета маркеров по номеру эффекта: 1=Red, 2=Yellow, 3=Green, 4=Blue (индексы 1–16 в настройках Labels)
+    var EFFECT_MARKER_LABELS = [1, 2, 3, 4];
+    var labelIndex = EFFECT_MARKER_LABELS[effect_number];
+    var markerProp = layer.marker;
+    var markerVal = new MarkerValue(String(effect_number), 0);
+    if (typeof markerVal.label !== "undefined") markerVal.label = labelIndex;
+    markerProp.setValueAtTime(time, markerVal);
+    var keyIdx = markerProp.nearestKeyIndex(time);
+    if (keyIdx >= 1) {
+      if (typeof markerProp.setLabelAtKey === "function") {
+        markerProp.setLabelAtKey(keyIdx, labelIndex);
+      } else if (markerProp.propertySpec && typeof markerProp.propertySpec.setLabelAtKey === "function") {
+        markerProp.propertySpec.setLabelAtKey(keyIdx, labelIndex);
+      }
+    }
+  }
+
+  function remove_all_markers_from_layer(layer) {
+    var markerProp = layer.marker;
+    for (var i = markerProp.numKeys; i >= 1; i--) {
+      markerProp.removeKey(i);
+    }
+  }
+
   const script_fullpath = $.fileName; // Возвращает полный путь текущего выполняемого скрипта
   const script_filename = File(script_fullpath).name; // имя файла
 
@@ -290,6 +315,7 @@
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
+  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
 
   // эти значения ниже будут считаны из слайдеров только один раз (для времени comp.time, соответсвующего положению playhead):
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
@@ -322,6 +348,7 @@
   const POINTERS_LEFT_TO_STOP = beat_layer.effect("POINTERS_LEFT_TO_STOP")("Slider").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
+  const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
 
   /*
     Этот скрипт всегда дает ошибку "Unable to execute script at line 113. Object is invalid" если слайдер tgtControl (с именем "script_output") еще не существует на момент запуска скрипта.
@@ -548,6 +575,8 @@
     return spd_value;
   }
 
+  if (SET_FX_MARKERS) remove_all_markers_from_layer(beat_layer);
+
   var time_processing_stopped_at = null;
   var time_pointers_reach_threshold = null;
   var time_only_bounced_left = null;
@@ -698,6 +727,8 @@
         }
         var effect_number = effects_sequence[effect_sequence_index];
         effect_triggered_total[effect_number]++;
+
+        if (SET_FX_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number);
 
         if (effect_number !== 1 && effect_number !== 2) opacity = 100;
 
@@ -957,6 +988,7 @@
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
+    "SET_FX_MARKERS = " + SET_FX_MARKERS + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
