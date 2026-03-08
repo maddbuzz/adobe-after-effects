@@ -316,6 +316,7 @@
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
 
   // эти значения ниже будут считаны из слайдеров только один раз (для времени comp.time, соответсвующего положению playhead):
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
@@ -349,6 +350,7 @@
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
   const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
+  const CLEAR_FX_MARKERS = beat_layer.effect("CLEAR_FX_MARKERS")("Checkbox").value;
 
   /*
     Этот скрипт всегда дает ошибку "Unable to execute script at line 113. Object is invalid" если слайдер tgtControl (с именем "script_output") еще не существует на момент запуска скрипта.
@@ -575,7 +577,7 @@
     return spd_value;
   }
 
-  if (SET_FX_MARKERS) remove_all_markers_from_layer(beat_layer);
+  if (CLEAR_FX_MARKERS) remove_all_markers_from_layer(beat_layer);
 
   var time_processing_stopped_at = null;
   var time_pointers_reach_threshold = null;
@@ -989,6 +991,7 @@
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
     "SET_FX_MARKERS = " + SET_FX_MARKERS + "\n" +
+    "CLEAR_FX_MARKERS = " + CLEAR_FX_MARKERS + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
