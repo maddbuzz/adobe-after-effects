@@ -904,7 +904,9 @@
           if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75); // ?
           else hue = getRandomInRange(0, 1);
 
-          // _ current_position = pointers[pointer_index].current_position; // А ВОТ ЭТОГО НЕ ДЕЛАЕМ - потому что бывали случаи, при переключении на свежий пойнтер показывался (вместо 1ого) -1ый кадр (чужой!)
+          // +frame_duration потому что бывали случаи, что при переключении на свежий пойнтер показывался (вместо 1ого) -1ый кадр (чужой!):
+          if (pointers[pointer_index].current_position === pointers[pointer_index].starting_position) pointers[pointer_index].current_position += frame_duration;
+          current_position = pointers[pointer_index].current_position;
         }
       }
 
