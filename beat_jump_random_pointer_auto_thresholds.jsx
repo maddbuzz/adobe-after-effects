@@ -318,6 +318,17 @@
     }
   }
 
+  /* *
+  function format_2_hh_mm_ss_ff(seconds, frame_duration) {
+    var h = Math.floor(seconds / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var s = Math.floor(seconds % 60);
+    var fps = Math.round(1 / frame_duration);
+    var ff = Math.round(seconds / frame_duration) % fps;
+    return padTwoDigits(h) + ":" + padTwoDigits(m) + ":" + padTwoDigits(s) + ":" + padTwoDigits(ff);
+  }
+  /* */
+
   const script_fullpath = $.fileName; // Возвращает полный путь текущего выполняемого скрипта
   const script_filename = File(script_fullpath).name; // имя файла
 
@@ -377,6 +388,10 @@
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_0", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_1", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_2", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_3", "Checkbox", true);
 
   // эти значения ниже будут считаны из слайдеров только один раз (для времени comp.time, соответсвующего положению playhead):
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
@@ -407,6 +422,12 @@
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
   const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
   const CLEAR_FX_MARKERS = beat_layer.effect("CLEAR_FX_MARKERS")("Checkbox").value;
+  const SET_FX_MARKER_EFFECT_0 = beat_layer.effect("SET_FX_MARKER_EFFECT_0")("Checkbox").value;
+  const SET_FX_MARKER_EFFECT_1 = beat_layer.effect("SET_FX_MARKER_EFFECT_1")("Checkbox").value;
+  const SET_FX_MARKER_EFFECT_2 = beat_layer.effect("SET_FX_MARKER_EFFECT_2")("Checkbox").value;
+  const SET_FX_MARKER_EFFECT_3 = beat_layer.effect("SET_FX_MARKER_EFFECT_3")("Checkbox").value;
+
+  const set_marker_for_effect = [SET_FX_MARKER_EFFECT_0, SET_FX_MARKER_EFFECT_1, SET_FX_MARKER_EFFECT_2, SET_FX_MARKER_EFFECT_3];
 
   /*
     Этот скрипт всегда дает ошибку "Unable to execute script at line 113. Object is invalid" если слайдер tgtControl (с именем "script_output") еще не существует на момент запуска скрипта.
@@ -652,6 +673,7 @@
     input_max: 100 + scale_MAX_amplitude,
     // tau: 0.144, // на выходе было 100, а на входе стало 200 - при каком тау будет достигнуто 150 за 0.1 секунды (τ ≈ 0.144 с)
     tau: 0.072, // на выходе было 100, а на входе стало 200 - при каком тау будет достигнуто 150 за 0.05 секунды (τ ≈ 0.072 с)
+    // tau: 0.036,
   };
 
   var time_processing_stopped_at = null;
@@ -803,7 +825,7 @@
         effect_number = effects_sequence[effect_sequence_index];
         effect_triggered_total[effect_number]++;
 
-        if (SET_FX_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number);
+        if (SET_FX_MARKERS && set_marker_for_effect[effect_number]) set_effect_marker_on_layer(beat_layer, time, effect_number);
 
         if (effect_number !== 1 && effect_number !== 2) opacity = 100;
 
@@ -879,10 +901,10 @@
             break;
           }
 
-          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          if (pointers[pointer_index].number === prev_pointer_number) hue += (Math.random() < 0.5 ? +0.25 : +0.75); // ?
           else hue = getRandomInRange(0, 1);
 
-          current_position = pointers[pointer_index].current_position;
+          // _ current_position = pointers[pointer_index].current_position; // А ВОТ ЭТОГО НЕ ДЕЛАЕМ - потому что бывали случаи, при переключении на свежий пойнтер показывался (вместо 1ого) -1ый кадр (чужой!)
         }
       }
 
@@ -925,8 +947,7 @@
       /*
       В After Effects выражениях:
         Time Remap:
-          t = thisComp.layer("beat").effect("script_output")("Color")[0];
-          Math.round(t); // !!!
+          thisComp.layer("beat").effect("script_output")("Color")[0];
         S_WarpFishEye Amount:
           thisComp.layer("beat").effect("script_output")("Color")[3];
         CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
@@ -1075,6 +1096,7 @@
     pointer_sequences_stats_output + "\n" +
     "SET_FX_MARKERS = " + SET_FX_MARKERS + "\n" +
     "CLEAR_FX_MARKERS = " + CLEAR_FX_MARKERS + "\n" +
+    // "SET_FX_MARKER_EFFECT_0..3 = " + SET_FX_MARKER_EFFECT_0 + "," + SET_FX_MARKER_EFFECT_1 + "," + SET_FX_MARKER_EFFECT_2 + "," + SET_FX_MARKER_EFFECT_3 + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
