@@ -614,6 +614,7 @@
   const frame_output0_values = new Array(frames_batch_size);
   const frame_output1_values = new Array(frames_batch_size);
 
+  // графики строятся в get_spd_from_src.plot.html
   function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
     if (src_high === src_low) throw new Error("src_high === src_low" + src_high + " vs " + src_low);
     if (spd_high === spd_low) throw new Error("spd_high === spd_low" + spd_high + " vs " + spd_low);
@@ -700,10 +701,10 @@
       }
 
       if (!speed_inputs) speed_inputs = window_stats;
+      if (input_C_value <= speed_inputs.min || input_C_value >= speed_inputs.max) speed_inputs = window_stats;
       var speed_output = (speed_inputs.min === speed_inputs.max)
         ? speed_min
         : get_spd_from_src(input_C_value, speed_inputs.min, speed_inputs.avg, speed_inputs.max, speed_min, speed_avg, speed_max);
-      if (input_C_value <= speed_inputs.min) speed_inputs = undefined;
 
       var starting_position = pointers[pointer_index].starting_position;
       var target_position = pointers[pointer_index].target_position;
@@ -798,6 +799,7 @@
           fisher_yates_shuffle(effects_sequence);
           effect_sequence_index = 0;
         }
+        var prev_effect_number = effect_number;
         effect_number = effects_sequence[effect_sequence_index];
         effect_triggered_total[effect_number]++;
 
@@ -810,6 +812,8 @@
           sgn *= -1;
         }
         else if (effect_number === 1) { // scale forward then backward
+          // if (prev_effect_number === 1) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
+          if (prev_effect_number === 1) sgn *= -1;
           /* TODO remove ? * 
           time_to_revert_opacity = time + scale_ADSR_attack; // TODO
           /* */
@@ -898,7 +902,9 @@
       var signed_scale = sgn * rc_signal_scale;
       /* */
 
+      /* TODO ? *
       if (!warp_inputs) warp_inputs = window_stats;
+      if (input_C_value <= warp_inputs.min || input_C_value >= warp_inputs.max) warp_inputs = window_stats;
       if (warp_inputs.max - warp_inputs.min !== 0) {
         S_WarpFishEye_Amount = lerp(
           0,
@@ -906,7 +912,13 @@
           (input_C_value - warp_inputs.min) / (warp_inputs.max - warp_inputs.min)
         );
       } else S_WarpFishEye_Amount = 0;
-      if (input_C_value <= warp_inputs.min) warp_inputs = undefined;
+      /* */
+      S_WarpFishEye_Amount = lerp(
+        0,
+        S_WarpFishEye_Amount_neg_max,
+        (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
+      );
+      /* */
 
       hue = fract_abs(hue + hue_drift);
 
