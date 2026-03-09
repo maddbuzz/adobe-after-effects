@@ -925,7 +925,8 @@
       /*
       В After Effects выражениях:
         Time Remap:
-          thisComp.layer("beat").effect("script_output")("Color")[0];
+          t = thisComp.layer("beat").effect("script_output")("Color")[0];
+          Math.round(t); // !!!
         S_WarpFishEye Amount:
           thisComp.layer("beat").effect("script_output")("Color")[3];
         CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
