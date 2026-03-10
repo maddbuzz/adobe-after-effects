@@ -124,13 +124,14 @@
     return;
   }
 
-  // Находим для каждого медиафайла диапазон использования: min = начало первого слоя в этом файле, max = конец последнего слоя в этом файле
+  // Находим для каждого медиафайла диапазон использования
   var sources_ranges = {}; // { [source_key]: { min: number, max: number } }
   for (var i = 0; i < target_layers.length; i++) {
     var layer = target_layers[i];
     var source_key = layer.source.name; // используем имя файла как ключ
-    var layer_start_in_source = layer.inPoint - layer.startTime;
-    var layer_end_in_source = layer.outPoint - layer.startTime;
+    var layer_start_in_source = layer.inPoint - layer.startTime; // начало слоя в его файле
+    // var layer_end_in_source = layer.outPoint - layer.startTime; // конец слоя в его файле
+    var layer_end_in_source = layer_start_in_source; // ?
     if (!sources_ranges[source_key]) sources_ranges[source_key] = { min: layer_start_in_source, max: layer_end_in_source };
     if (layer_start_in_source < sources_ranges[source_key].min) sources_ranges[source_key].min = layer_start_in_source;
     if (layer_end_in_source > sources_ranges[source_key].max) sources_ranges[source_key].max = layer_end_in_source;
@@ -158,8 +159,10 @@
         var range_b = sources_ranges[layer_b.source.name];
         var start_a = layer_a.inPoint - layer_a.startTime;
         var start_b = layer_b.inPoint - layer_b.startTime;
-        var relative_start_a = (start_a - range_a.min) / (range_a.max - range_a.min);
-        var relative_start_b = (start_b - range_b.min) / (range_b.max - range_b.min);
+        var denominator_a = range_a.max - range_a.min;
+        var denominator_b = range_b.max - range_b.min;
+        var relative_start_a = denominator_a ? (start_a - range_a.min) / denominator_a : 0;
+        var relative_start_b = denominator_b ? (start_b - range_b.min) / denominator_b : 0;
 
         // Если включен shuffle_layers и слой один единственный во всем файле, то он получает рандомное значение (сохраняем):
         if (shuffle_layers) {
