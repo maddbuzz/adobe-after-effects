@@ -146,24 +146,25 @@
   }
 
   /**
-   * Ограничитель скорости изменения сигнала (slew rate limiter).
-   * input — входной сигнал (любое число, внутри ограничивается state.input_min, state.input_max).
-   * time_seconds — текущее время в секундах; на каждом кадре должен быть не меньше значения на предыдущем вызове (вызовы без пропусков кадров).
-   * state — объект с полями:
+   * Пошаговый ограничитель скорости изменения сигнала (step slew rate limiter): один вызов = один кадр.
+   * ВАЖНО: функцию нужно вызывать строго на каждом кадре, без пропусков — иначе ограничение скорости будет неверным
+   * (в отличие от rc_signal, которую можно вызывать с любой периодичностью).
+   *
+   * @param input — входной сигнал (любое число, внутри ограничивается state.input_min, state.input_max).
+   * @param state — объект с полями:
    *   input_min, input_max — границы входа (input_min <= input_max);
    *   attack_rate — макс. скорость роста выхода, единиц/сек (должен быть > 0);
    *   decay_rate — макс. скорость спада выхода, единиц/сек (должен быть > 0);
-   *   при первом вызове в state записываются last_output, last_time.
-   * Возвращает output в пределах [input_min, input_max], который не меняется быстрее заданных скоростей.
-   */
-  function rate_limit_signal(input, time_seconds, state) {
+   *   frame_duration — длительность одного кадра в секундах (постоянная для данной композиции);
+   *   last_output — предыдущее значение выхода (обязательно задать до первого вызова, иначе будет выброшена ошибка).
+   * @returns output в пределах [input_min, input_max], который не меняется быстрее заданных скоростей.
+   *
+  function step_slew_limit_signal(input, state) {
     var clamped = clamp(input, state.input_min, state.input_max);
-    if (state.last_time === undefined) {
-      state.last_output = clamped;
-      state.last_time = time_seconds;
-      return clamped;
+    if (state.last_output === undefined || state.frame_duration === undefined) {
+      throw new Error("step_slew_limit_signal: предыдущее состояние обязательно: задайте state.last_output и state.frame_duration до первого вызова");
     }
-    var dt = time_seconds - state.last_time;
+    var dt = state.frame_duration;
     var max_rise = state.attack_rate * dt;
     var max_fall = state.decay_rate * dt;
     var out;
@@ -173,9 +174,9 @@
       out = Math.max(clamped, state.last_output - max_fall);
     }
     state.last_output = out;
-    state.last_time = time_seconds;
     return out;
   }
+  /* */
 
   /**
    * Эмуляция конденсатора (RC-фильтр первого порядка): выход экспоненциально стремится к входу.
@@ -184,15 +185,13 @@
    * state — объект с полями:
    *   tau — постоянная времени в секундах (должна быть > 0); чем больше tau, тем медленнее выход догоняет вход;
    *   input_min, input_max — границы входа и выхода (input_min <= input_max);
-   *   при первом вызове в state записываются last_output, last_time.
+   *   last_output, last_time — предыдущее состояние (обязательно задать до первого вызова, иначе будет выброшена ошибка).
    * Возвращает output в пределах [input_min, input_max].
    */
   function rc_signal(input, time_seconds, state) {
     var clamped = clamp(input, state.input_min, state.input_max);
-    if (state.last_time === undefined) {
-      state.last_output = clamped;
-      state.last_time = time_seconds;
-      return clamped;
+    if (state.last_time === undefined || state.last_output === undefined) {
+      throw new Error("rc_signal: предыдущее состояние обязательно: задайте state.last_output и state.last_time до первого вызова");
     }
     var dt = time_seconds - state.last_time;
     var tau = state.tau;
@@ -653,27 +652,27 @@
 
   if (CLEAR_FX_MARKERS) remove_all_markers_from_layer(beat_layer);
 
-  // var input_C_rate_limit_state = {
-  //   input_min: inputs_ABC_min_value,
-  //   input_max: inputs_ABC_max_value,
-  //   attack_rate: (inputs_ABC_max_value - inputs_ABC_min_value) / 0.1,
-  //   decay_rate: (inputs_ABC_max_value - inputs_ABC_min_value) / 0.4,
-  // };
-
   var scale = 100;
 
+  /*
   var scale_rate_limit_state = {
     input_min: 100,
     input_max: 100 + scale_MAX_amplitude,
     attack_rate: scale_MAX_amplitude / 0.1,
     decay_rate: scale_MAX_amplitude / 0.1,
+    frame_duration: frame_duration,
+    last_output: 100,
   };
+  */
+ 
   var scale_rc_signal_state = {
     input_min: 100,
     input_max: 100 + scale_MAX_amplitude,
     // tau: 0.144, // на выходе было 100, а на входе стало 200 - при каком тау будет достигнуто 150 за 0.1 секунды (τ ≈ 0.144 с)
     tau: 0.072, // на выходе было 100, а на входе стало 200 - при каком тау будет достигнуто 150 за 0.05 секунды (τ ≈ 0.072 с)
     // tau: 0.036,
+    last_output: 100,
+    last_time: work_start_time - frame_duration,
   };
 
   var time_processing_stopped_at = null;
@@ -716,7 +715,7 @@
         break;
       }
       var input_C_value = window_stats.current_value; // [inputs_ABC_min_value, inputs_ABC_max_value]
-      // rate_limited_input_C_value = rate_limit_signal(input_C_value, time, input_C_rate_limit_state);
+      // rate_limited_input_C_value = step_slew_limit_signal(input_C_value, input_C_rate_limit_state);
 
       if (!is_FX_active) {
         input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
@@ -919,7 +918,7 @@
         );
       } else scale = 100;
       /* *
-      var rate_limited_scale = rate_limit_signal(scale, time, scale_rate_limit_state);
+      var rate_limited_scale = step_slew_limit_signal(scale, scale_rate_limit_state);
       var signed_scale = sgn * rate_limited_scale;
       /* */
       var rc_signal_scale = rc_signal(scale, time, scale_rc_signal_state);
