@@ -614,6 +614,13 @@
 
   var opacity = 100;
   var time_to_revert_opacity = null;
+  
+  const scale_ADSR_attack = 0.1;
+  const scale_ADSR_delay = 0.1;
+  const scale_ADSR_sustain = 0.0;
+  const scale_ADSR_release = 0.0;
+  var scale_ADSR_activation_time = null;
+  var scale_ADSR_deactivation_time = null;
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
 
@@ -663,6 +670,8 @@
     frame_duration: frame_duration,
     last_output: 100,
   };
+      var rate_limited_scale = step_slew_limit_signal(scale, scale_rate_limit_state);
+      var signed_scale = sgn * rate_limited_scale;
   */
  
   var scale_rc_signal_state = {
@@ -833,10 +842,11 @@
           sgn *= -1;
         }
         else if (effect_number === 1) { // scale forward then backward
-          // if (prev_effect_number === 1) hue += (Math.random() < 0.5 ? +0.25 : +0.75);
           if (prev_effect_number === 1) sgn *= -1;
-          /* TODO remove ? * 
-          time_to_revert_opacity = time + scale_ADSR_attack; // TODO
+          /* */
+          scale_ADSR_activation_time = time;
+          scale_ADSR_deactivation_time = time;
+          time_to_revert_opacity = time + scale_ADSR_attack;
           /* */
         }
         else if (effect_number === 2) { // opacity
@@ -909,18 +919,20 @@
         }
       }
 
+      /* */
+      var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
+      var scale_ADSR_amplitude = scale_MAX_amplitude * scale_ADSR_normalized;
+      var scale = 100 + scale_ADSR_amplitude;
+      var signed_scale = sgn * scale;
+      /* */
+      /* *
       if (effect_number === 1) {
-        // GOOD // scale = lerp(100, 200, (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value));
         scale = lerp(
           100,
           100 + scale_MAX_amplitude,
           (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
         );
       } else scale = 100;
-      /* *
-      var rate_limited_scale = step_slew_limit_signal(scale, scale_rate_limit_state);
-      var signed_scale = sgn * rate_limited_scale;
-      /* */
       var rc_signal_scale = rc_signal(scale, time, scale_rc_signal_state);
       var signed_scale = sgn * rc_signal_scale;
       /* */
