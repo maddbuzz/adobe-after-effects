@@ -364,7 +364,7 @@
   create_new_or_return_existing_control(beat_layer, "inputs_ABC_min_value", "Slider", 0.0);
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
-  create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.08333); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
+  create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.2); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
   create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
@@ -614,7 +614,7 @@
 
   var opacity = 100;
   var time_to_revert_opacity = null;
-  
+
   const scale_ADSR_attack = 0.1;
   const scale_ADSR_delay = 0.1;
   const scale_ADSR_sustain = 0.0;
@@ -659,8 +659,6 @@
 
   if (CLEAR_FX_MARKERS) remove_all_markers_from_layer(beat_layer);
 
-  var scale = 100;
-
   /*
   var scale_rate_limit_state = {
     input_min: 100,
@@ -673,7 +671,7 @@
       var rate_limited_scale = step_slew_limit_signal(scale, scale_rate_limit_state);
       var signed_scale = sgn * rate_limited_scale;
   */
- 
+
   var scale_rc_signal_state = {
     input_min: 100,
     input_max: 100 + scale_MAX_amplitude,
@@ -842,12 +840,10 @@
           sgn *= -1;
         }
         else if (effect_number === 1) { // scale forward then backward
-          if (prev_effect_number === 1) sgn *= -1;
-          /* */
+          if (prev_effect_number === 1) sgn *= -1; // TODO ?
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
           time_to_revert_opacity = time + scale_ADSR_attack;
-          /* */
         }
         else if (effect_number === 2) { // opacity
           time_to_revert_opacity = null;
@@ -922,19 +918,16 @@
       /* */
       var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
       var scale_ADSR_amplitude = scale_MAX_amplitude * scale_ADSR_normalized;
-      var scale = 100 + scale_ADSR_amplitude;
-      var signed_scale = sgn * scale;
-      /* */
-      /* *
-      if (effect_number === 1) {
-        scale = lerp(
-          100,
-          100 + scale_MAX_amplitude,
-          (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
-        );
-      } else scale = 100;
-      var rc_signal_scale = rc_signal(scale, time, scale_rc_signal_state);
-      var signed_scale = sgn * rc_signal_scale;
+      var scale_ADSR = 100 + scale_ADSR_amplitude;
+
+      var scale_input = effect_number !== 1 ? 100 : lerp(
+        100,
+        100 + scale_MAX_amplitude,
+        (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
+      );
+      var scale_rc_signal = rc_signal(scale_input, time, scale_rc_signal_state);
+
+      var signed_scale = sgn * Math.max(scale_ADSR, scale_rc_signal);
       /* */
 
       /* TODO ? *
