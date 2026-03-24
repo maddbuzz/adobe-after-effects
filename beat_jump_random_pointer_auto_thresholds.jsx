@@ -612,6 +612,8 @@
   var FX_triggered_but_skipped = 0;
   const windows_stats_values = [];
 
+  var use_both_FX1_variants = false;
+
   var opacity = 100;
   var time_to_revert_opacity = null;
 
@@ -840,7 +842,8 @@
           sgn *= -1;
         }
         else if (effect_number === 1) { // scale forward then backward
-          if (prev_effect_number === 1) sgn *= -1; // TODO ?
+          // if (prev_effect_number === 1) sgn *= -1; // TODO ?
+          use_both_FX1_variants = (prev_effect_number === 1);
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
           time_to_revert_opacity = time + scale_ADSR_attack;
@@ -924,12 +927,14 @@
         ? 100
         : lerp(
           100,
-          100 + 0.5 * scale_MAX_amplitude,
+          100 + scale_MAX_amplitude,
           (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
         );
       var scale_rc_signal = rc_signal(scale_input, time, scale_rc_signal_state);
 
-      var signed_scale = sgn * Math.max(scale_ADSR, scale_rc_signal);
+      var signed_scale = use_both_FX1_variants
+        ? sgn * Math.max(scale_ADSR, scale_rc_signal)
+        : sgn * scale_ADSR;
       /* */
 
       /* TODO ? *
