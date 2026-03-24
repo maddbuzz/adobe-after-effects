@@ -932,6 +932,7 @@
         );
       var scale_rc_signal = rc_signal(scale_input, time, scale_rc_signal_state);
 
+      if (effect_number !== 1 && effect_number !== 2) use_both_FX1_variants = false;
       var signed_scale = use_both_FX1_variants
         ? sgn * Math.max(scale_ADSR, scale_rc_signal)
         : sgn * scale_ADSR;
