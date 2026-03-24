@@ -920,11 +920,13 @@
       var scale_ADSR_amplitude = scale_MAX_amplitude * scale_ADSR_normalized;
       var scale_ADSR = 100 + scale_ADSR_amplitude;
 
-      var scale_input = effect_number !== 1 ? 100 : lerp(
-        100,
-        100 + scale_MAX_amplitude,
-        (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
-      );
+      var scale_input = effect_number !== 1
+        ? 100
+        : lerp(
+          100,
+          100 + 0.5 * scale_MAX_amplitude,
+          (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
+        );
       var scale_rc_signal = rc_signal(scale_input, time, scale_rc_signal_state);
 
       var signed_scale = sgn * Math.max(scale_ADSR, scale_rc_signal);
