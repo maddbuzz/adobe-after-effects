@@ -385,7 +385,7 @@
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
-  create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 60); // default 60 seconds now (was 16)
+  create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16); // default 16 seconds
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_0", "Checkbox", true);
@@ -780,8 +780,8 @@
       // rate_limited_input_C_value = step_slew_limit_signal(input_C_value, input_C_rate_limit_state);
 
       if (!is_FX_active) {
-        // input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
-        input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO название activate_avg_max не подходит при таком использовании ?
+        input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max); // TODO ?
+        // input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO название activate_avg_max не подходит при таком использовании ?
       }
 
       if (!speed_inputs) speed_inputs = window_stats;
@@ -860,7 +860,6 @@
         }
       }
 
-      // TODO ?
       if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
         opacity = 100;
         time_to_revert_opacity = null;
@@ -893,7 +892,7 @@
         }
         else if (effect_number === 1) { // scale forward then backward
           // if (prev_effect_number === 1) sgn *= -1; // TODO ?
-          use_both_FX1_variants = (prev_effect_number === 1);
+          use_both_FX1_variants = (prev_effect_number === 1); // TODO ?
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
           time_to_revert_opacity = time + scale_ADSR_attack;
@@ -1105,8 +1104,8 @@
     // "inputs_ABC_max_value = " + inputs_ABC_max_value + "\n" +
     // "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
-    // "activate_avg_max = " + activate_avg_max + "\n" +
-    "?activate_avg_max? * inputs_ABC_max_value = " + activate_avg_max * inputs_ABC_max_value + "\n" +
+    "activate_avg_max = " + activate_avg_max + "\n" +
+    // "?activate_avg_max? * inputs_ABC_max_value = " + activate_avg_max * inputs_ABC_max_value + "\n" + // TODO ?
     "auto_correction_window SECONDS = " + auto_correction_window + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
