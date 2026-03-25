@@ -286,12 +286,13 @@
     return effect.property(type); // <- возвращаем property, а не effect - иначе setValuesAtTimes работать не будет!
   }
 
-  function set_effect_marker_on_layer(layer, time, effect_number) {
-    // Цвета маркеров по номеру эффекта: 1=Red, 2=Yellow, 3=Green, 4=Blue (индексы 1–16 в настройках Labels)
+  function set_effect_marker_on_layer(layer, time, effect_number, is_stop) {
+    // Активация: цвет по номеру эффекта 1=Red, 2=Yellow, 3=Green, 4=Blue. Деактивация (is_stop): label 5 (зависит от Preferences > Labels)
     var EFFECT_MARKER_LABELS = [1, 2, 3, 4];
-    var labelIndex = EFFECT_MARKER_LABELS[effect_number];
+    var labelIndex = is_stop ? 5 : EFFECT_MARKER_LABELS[effect_number];
+    var comment = is_stop ? ("s" + String(effect_number)) : String(effect_number);
     var markerProp = layer.marker;
-    var markerVal = new MarkerValue(String(effect_number), 0);
+    var markerVal = new MarkerValue(comment, 0);
     if (typeof markerVal.label !== "undefined") markerVal.label = labelIndex;
     markerProp.setValueAtTime(time, markerVal);
     var keyIdx = markerProp.nearestKeyIndex(time);
@@ -366,6 +367,7 @@
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.2); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
   create_new_or_return_existing_control(beat_layer, "MIN_TIME_BETWEEN_STRONG_FX", "Slider", 1.0); // 1 секунда дефолт
+  create_new_or_return_existing_control(beat_layer, "FORCE_DEACTIVATE_FX_AFTER", "Slider", 0.2); // сек; 0 = не принуждать
   create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
@@ -387,6 +389,7 @@
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16); // default 16 seconds
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
+  create_new_or_return_existing_control(beat_layer, "SET_FX_STOP_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_0", "Checkbox", true);
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_1", "Checkbox", true);
@@ -401,6 +404,7 @@
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
   const REGULAR_FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("REGULAR_FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
   const MIN_TIME_BETWEEN_STRONG_FX = beat_layer.effect("MIN_TIME_BETWEEN_STRONG_FX")("Slider").value;
+  const FORCE_DEACTIVATE_FX_AFTER = beat_layer.effect("FORCE_DEACTIVATE_FX_AFTER")("Slider").value;
   const scale_MAX_amplitude = beat_layer.effect("scale_MAX_amplitude")("Slider").value;
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
   const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
@@ -422,6 +426,7 @@
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
   const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
+  const SET_FX_STOP_MARKERS = beat_layer.effect("SET_FX_STOP_MARKERS")("Checkbox").value;
   const CLEAR_FX_MARKERS = beat_layer.effect("CLEAR_FX_MARKERS")("Checkbox").value;
   const SET_FX_MARKER_EFFECT_0 = beat_layer.effect("SET_FX_MARKER_EFFECT_0")("Checkbox").value;
   const SET_FX_MARKER_EFFECT_1 = beat_layer.effect("SET_FX_MARKER_EFFECT_1")("Checkbox").value;
@@ -780,8 +785,8 @@
       // rate_limited_input_C_value = step_slew_limit_signal(input_C_value, input_C_rate_limit_state);
 
       if (!is_FX_active) {
-        input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max); // TODO ?
-        // input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO название activate_avg_max не подходит при таком использовании ?
+        // input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max); // TODO ?
+        input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO название activate_avg_max не подходит при таком использовании ?
       }
 
       if (!speed_inputs) speed_inputs = window_stats;
@@ -835,8 +840,16 @@
 
       var FX_triggered = false;
 
-      if (is_FX_active && (input_C_value <= input_C_deactivation_value)) {
+      var fx_force_deactivate =
+        FORCE_DEACTIVATE_FX_AFTER > 0 &&
+        last_FX_activation_time !== null &&
+        time - last_FX_activation_time >= FORCE_DEACTIVATE_FX_AFTER;
+      if (
+        is_FX_active &&
+        (fx_force_deactivate || input_C_value <= input_C_deactivation_value)
+      ) {
         is_FX_active = false;
+        if (SET_FX_STOP_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number, true);
       }
       if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
         input_C_deactivation_value = lerp(window_stats.min, window_stats.avg, deactivate_min_avg);
@@ -1114,6 +1127,7 @@
     "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
     "MIN_TIME_BETWEEN_STRONG_FX = " + MIN_TIME_BETWEEN_STRONG_FX + "\n" +
+    "FORCE_DEACTIVATE_FX_AFTER = " + FORCE_DEACTIVATE_FX_AFTER + "\n" +
     // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
     "speed_max = " + speed_max + "\n" +
@@ -1160,6 +1174,7 @@
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
     pointer_sequences_stats_output + "\n" +
     "SET_FX_MARKERS = " + SET_FX_MARKERS + "\n" +
+    "SET_FX_STOP_MARKERS = " + SET_FX_STOP_MARKERS + "\n" +
     "CLEAR_FX_MARKERS = " + CLEAR_FX_MARKERS + "\n" +
     // "SET_FX_MARKER_EFFECT_0..3 = " + SET_FX_MARKER_EFFECT_0 + "," + SET_FX_MARKER_EFFECT_1 + "," + SET_FX_MARKER_EFFECT_2 + "," + SET_FX_MARKER_EFFECT_3 + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
