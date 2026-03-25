@@ -609,6 +609,7 @@
   var effect_picker_state = {
     min_time_between_strong_fx: MIN_TIME_BETWEEN_STRONG_FX,
     last_strong_FX_time: null,
+    last_pick_was_weak: true, // как «после слабого» — первый выбор в режиме strong/weak будет сильным
     legacy_effect_sequence: {
       queue: get_random_permutation(TOTAL_EFFECTS - 1),
       index: 0,
@@ -640,10 +641,10 @@
   }
 
   /**
-   * Выбор номера эффекта. Второй аргумент — мутабельное состояние (очереди, last_strong_FX_time).
+   * Выбор номера эффекта. Второй аргумент — мутабельное состояние (очереди, last_strong_FX_time, last_pick_was_weak).
    * При min_time_between_strong_fx <= 0 — одна legacy-очередь без разделения сильных/слабых.
-   * Иначе: в окне после сильного — только слабая очередь; после истечения окна — с вероятностью 50%
-   * ещё один слабый, иначе сильный (для сильного обновляется last_strong_FX_time).
+   * Иначе: в окне cooldown после сильного — только слабая очередь; после окна — чередование слабый ↔ сильный по last_pick_was_weak
+   * (флаг сохраняется между вызовами, в т.ч. при долгой паузе без триггеров).
    */
   function pick_next_effect_number(time, state) {
     if (state.min_time_between_strong_fx <= 0) return next_from_shuffled_cycle(state.legacy_effect_sequence);
@@ -652,13 +653,20 @@
     if (
       state.last_strong_FX_time !== null &&
       time - state.last_strong_FX_time < state.min_time_between_strong_fx
-    ) return next_from_shuffled_cycle(state.weak_effect_sequence);
+    ) {
+      state.last_pick_was_weak = true;
+      return next_from_shuffled_cycle(state.weak_effect_sequence);
+    }
 
-    // После окна: не всегда сразу сильный — половина активаций остаётся на слабой очереди.
-    if (Math.random() < 0.5) return next_from_shuffled_cycle(state.weak_effect_sequence);
-
-    state.last_strong_FX_time = time;
-    return next_from_shuffled_cycle(state.strong_effect_sequence);
+    // После окна: чередование слабый ↔ сильный по факту предыдущего выбора.
+    if (state.last_pick_was_weak) {
+      state.last_pick_was_weak = false;
+      state.last_strong_FX_time = time;
+      return next_from_shuffled_cycle(state.strong_effect_sequence);
+    } else {
+      state.last_pick_was_weak = true;
+      return next_from_shuffled_cycle(state.weak_effect_sequence);
+    }
   }
 
   var FX_triggered_total = 0;
