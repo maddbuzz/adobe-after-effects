@@ -608,7 +608,6 @@
   const TOTAL_EFFECTS = 4; // 0 - horizontal inversion, 1 - scale forward then backward, 2 - opacity, 3 - jump in time
   var effect_picker_state = {
     min_time_between_strong_fx: MIN_TIME_BETWEEN_STRONG_FX,
-    require_weak_next: false,
     last_strong_FX_time: null,
     legacy_effect_sequence: {
       queue: get_random_permutation(TOTAL_EFFECTS - 1),
@@ -641,16 +640,13 @@
   }
 
   /**
-   * Всё состояние выбора эффекта — во втором аргументе (мутируется при обходе очередей и смене флагов).
+   * Выбор номера эффекта. Второй аргумент — мутабельное состояние (очереди, last_strong_FX_time).
+   * При min_time_between_strong_fx <= 0 — одна legacy-очередь без разделения сильных/слабых.
+   * Иначе: в окне после сильного — только слабая очередь; после истечения окна — с вероятностью 50%
+   * ещё один слабый, иначе сильный (для сильного обновляется last_strong_FX_time).
    */
   function pick_next_effect_number(time, state) {
     if (state.min_time_between_strong_fx <= 0) return next_from_shuffled_cycle(state.legacy_effect_sequence);
-
-    // После сильного следующий эффект всегда слабый, даже если до следующего бита прошло больше min_time_between_strong_fx.
-    if (state.require_weak_next) {
-      state.require_weak_next = false;
-      return next_from_shuffled_cycle(state.weak_effect_sequence);
-    }
 
     // Пока не истекло окно после последнего сильного — только слабая очередь.
     if (
@@ -658,8 +654,10 @@
       time - state.last_strong_FX_time < state.min_time_between_strong_fx
     ) return next_from_shuffled_cycle(state.weak_effect_sequence);
 
+    // После окна: не всегда сразу сильный — половина активаций остаётся на слабой очереди.
+    if (Math.random() < 0.5) return next_from_shuffled_cycle(state.weak_effect_sequence);
+
     state.last_strong_FX_time = time;
-    state.require_weak_next = true;
     return next_from_shuffled_cycle(state.strong_effect_sequence);
   }
 
@@ -852,7 +850,10 @@
         if (SET_FX_STOP_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number, true);
       }
       if ((!is_FX_active) && (input_C_value >= input_C_activation_value)) {
+        // Порог деактивации между min и avg окна; deactivate_min_avg задаёт позицию на этом отрезке.
         input_C_deactivation_value = lerp(window_stats.min, window_stats.avg, deactivate_min_avg);
+        // Альтернатива: между avg окна и текущим порогом активации (середина).
+        // input_C_deactivation_value = lerp(window_stats.avg, input_C_activation_value, 0.5);
 
         if (input_C_deactivation_value >= input_C_activation_value) {
           throw new Error("input_C_deactivation_value >= input_C_activation_value: " + "\n" + input_C_deactivation_value + " >= " + input_C_activation_value);
