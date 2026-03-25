@@ -365,6 +365,7 @@
   create_new_or_return_existing_control(beat_layer, "deactivate_min_avg", "Slider", 1.0); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "activate_avg_max", "Slider", 0.5); // [0, 1]
   create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.2); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
+  create_new_or_return_existing_control(beat_layer, "MIN_TIME_BETWEEN_STRONG_FX", "Slider", 1.0); // 1 секунда дефолт
   create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
@@ -399,6 +400,7 @@
   const deactivate_min_avg = beat_layer.effect("deactivate_min_avg")("Slider").value;
   const activate_avg_max = beat_layer.effect("activate_avg_max")("Slider").value;
   const REGULAR_FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("REGULAR_FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
+  const MIN_TIME_BETWEEN_STRONG_FX = beat_layer.effect("MIN_TIME_BETWEEN_STRONG_FX")("Slider").value;
   const scale_MAX_amplitude = beat_layer.effect("scale_MAX_amplitude")("Slider").value;
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
   const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
@@ -599,11 +601,62 @@
   var sgn = +1;
 
   const TOTAL_EFFECTS = 4; // 0 - horizontal inversion, 1 - scale forward then backward, 2 - opacity, 3 - jump in time
-  var effects_sequence = get_random_permutation(TOTAL_EFFECTS - 1);
-  var effect_sequence_index = 0;
+  var effect_picker_state = {
+    min_time_between_strong_fx: MIN_TIME_BETWEEN_STRONG_FX,
+    require_weak_next: false,
+    last_strong_FX_time: null,
+    legacy_effect_sequence: {
+      queue: get_random_permutation(TOTAL_EFFECTS - 1),
+      index: 0,
+    },
+    weak_effect_sequence: {
+      queue: fisher_yates_shuffle([1, 2]),
+      index: 0,
+    },
+    strong_effect_sequence: {
+      queue: fisher_yates_shuffle([0, 3]),
+      index: 0,
+    },
+  };
   var effect_number = undefined;
   const effect_triggered_total = []; for (var i = 0; i < TOTAL_EFFECTS; i++) effect_triggered_total[i] = 0;
   const effect_triggered_values = [];
+
+  /**
+   * effect_sequence: { queue: Array, index: number }.
+   * Следующий номер эффекта из текущей перетасовки; когда index дошёл до конца очереди — снова fisher_yates_shuffle(queue), index = 0.
+   */
+  function next_from_shuffled_cycle(effect_sequence) {
+    var queue = effect_sequence.queue;
+    if (effect_sequence.index >= queue.length) {
+      fisher_yates_shuffle(queue);
+      effect_sequence.index = 0;
+    }
+    return queue[effect_sequence.index++];
+  }
+
+  /**
+   * Всё состояние выбора эффекта — во втором аргументе (мутируется при обходе очередей и смене флагов).
+   */
+  function pick_next_effect_number(time, state) {
+    if (state.min_time_between_strong_fx <= 0) return next_from_shuffled_cycle(state.legacy_effect_sequence);
+
+    // После сильного следующий эффект всегда слабый, даже если до следующего бита прошло больше min_time_between_strong_fx.
+    if (state.require_weak_next) {
+      state.require_weak_next = false;
+      return next_from_shuffled_cycle(state.weak_effect_sequence);
+    }
+
+    // Пока не истекло окно после последнего сильного — только слабая очередь.
+    if (
+      state.last_strong_FX_time !== null &&
+      time - state.last_strong_FX_time < state.min_time_between_strong_fx
+    ) return next_from_shuffled_cycle(state.weak_effect_sequence);
+
+    state.last_strong_FX_time = time;
+    state.require_weak_next = true;
+    return next_from_shuffled_cycle(state.strong_effect_sequence);
+  }
 
   var FX_triggered_total = 0;
   var is_FX_active = false;
@@ -826,13 +879,8 @@
           }
         }
 
-        effect_sequence_index += 1;
-        if (effect_sequence_index >= TOTAL_EFFECTS) {
-          fisher_yates_shuffle(effects_sequence);
-          effect_sequence_index = 0;
-        }
         var prev_effect_number = effect_number;
-        effect_number = effects_sequence[effect_sequence_index];
+        effect_number = pick_next_effect_number(time, effect_picker_state);
         effect_triggered_total[effect_number]++;
 
         if (SET_FX_MARKERS && set_marker_for_effect[effect_number]) set_effect_marker_on_layer(beat_layer, time, effect_number);
@@ -1066,6 +1114,7 @@
     "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
     "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
+    "MIN_TIME_BETWEEN_STRONG_FX = " + MIN_TIME_BETWEEN_STRONG_FX + "\n" +
     // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
     "speed_max = " + speed_max + "\n" +
