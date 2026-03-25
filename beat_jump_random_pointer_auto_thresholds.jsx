@@ -384,7 +384,7 @@
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
-  create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16);
+  create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 60); // default 60 seconds now (was 16)
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_0", "Checkbox", true);
@@ -727,7 +727,8 @@
       // rate_limited_input_C_value = step_slew_limit_signal(input_C_value, input_C_rate_limit_state);
 
       if (!is_FX_active) {
-        input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
+        // input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max);
+        input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO название activate_avg_max не подходит при таком использовании ?
       }
 
       if (!speed_inputs) speed_inputs = window_stats;
@@ -788,7 +789,8 @@
         input_C_deactivation_value = lerp(window_stats.min, window_stats.avg, deactivate_min_avg);
 
         if (input_C_deactivation_value >= input_C_activation_value) {
-          input_C_deactivation_value_equal_activation_value++; // skip if so
+          throw new Error("input_C_deactivation_value >= input_C_activation_value: " + "\n" + input_C_deactivation_value + " >= " + input_C_activation_value);
+          input_C_deactivation_value_equal_activation_value++; // TODO skip if so ?
         } else {
           FX_triggered_total++;
           // Проверяем, прошло ли достаточно времени с момента последней активации
@@ -1055,7 +1057,8 @@
     // "inputs_ABC_max_value = " + inputs_ABC_max_value + "\n" +
     // "inputs_ABC_min_value = " + inputs_ABC_min_value + "\n" +
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
-    "activate_avg_max = " + activate_avg_max + "\n" +
+    // "activate_avg_max = " + activate_avg_max + "\n" +
+    "?activate_avg_max? * inputs_ABC_max_value = " + activate_avg_max * inputs_ABC_max_value + "\n" +
     "auto_correction_window SECONDS = " + auto_correction_window + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
