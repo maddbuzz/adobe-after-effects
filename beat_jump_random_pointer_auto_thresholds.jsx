@@ -276,20 +276,22 @@
   }
 
   function create_new_or_return_existing_control(layer, control_name, type, default_value) {
+    // У 3D Point Control matchName эффекта ADBE Point3D Control, а имя единственного параметра — "3D Point", не "Point3D".
+    var property_name = type === "Point3D" ? "3D Point" : type;
     var effect = layer.effect(control_name);
     if (!effect) {
       var adbe_type = "ADBE " + type + " Control";
       effect = layer.Effects.addProperty(adbe_type);
       effect.name = control_name;
-      if (default_value !== undefined) effect.property(type).setValue(default_value);
+      if (default_value !== undefined) effect.property(property_name).setValue(default_value);
     }
-    return effect.property(type); // <- возвращаем property, а не effect - иначе setValuesAtTimes работать не будет!
+    return effect.property(property_name); // <- возвращаем property, а не effect - иначе setValuesAtTimes работать не будет!
   }
 
   function set_effect_marker_on_layer(layer, time, effect_number, is_stop) {
-    // Активация: цвет по номеру эффекта 1=Red, 2=Yellow, 3=Green, 4=Blue. Деактивация (is_stop): label 5 (зависит от Preferences > Labels)
-    var EFFECT_MARKER_LABELS = [1, 2, 3, 4];
-    var labelIndex = is_stop ? 5 : EFFECT_MARKER_LABELS[effect_number];
+    // labelIndex цвет? (зависит от Preferences > Labels): 1=Red, 2=Yellow, 3=Green, 4=Blue
+    var labelIndex = is_stop ? 0 : effect_number + 1;
+
     var comment = is_stop ? ("s" + String(effect_number)) : String(effect_number);
     var markerProp = layer.marker;
     var markerVal = new MarkerValue(comment, 0);
@@ -368,7 +370,12 @@
   create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.2); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
   create_new_or_return_existing_control(beat_layer, "MIN_TIME_BETWEEN_STRONG_FX", "Slider", 1.0); // 1 секунда дефолт
   create_new_or_return_existing_control(beat_layer, "FORCE_DEACTIVATE_FX_AFTER", "Slider", 0.2); // сек; 0 = не принуждать
+  create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 60); // seconds
   create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
+  create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.0); // 0.1 seconds ?
+  create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // 0.1 seconds ?
+  create_new_or_return_existing_control(beat_layer, "scale_ADSR_sustain", "Slider", 0.0); // 0.0 normalized amplitude [0, 1]
+  create_new_or_return_existing_control(beat_layer, "scale_ADSR_release", "Slider", 0.0); // 0.0 seconds
   create_new_or_return_existing_control(beat_layer, "speed_max", "Slider", 9.0); // 1 + (7 / 1.25) * 2 === 12.2
   create_new_or_return_existing_control(beat_layer, "speed_avg", "Slider", 3.0);
   create_new_or_return_existing_control(beat_layer, "speed_min", "Slider", 1.0);
@@ -387,7 +394,6 @@
   create_new_or_return_existing_control(beat_layer, "USE_WORKAREA_INSTEAD_OF_CLIPS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "POINTERS_LEFT_TO_STOP", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "hue_drift", "Slider", 0.000278);
-  create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 16); // default 16 seconds
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "SET_FX_STOP_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
@@ -405,7 +411,12 @@
   const REGULAR_FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("REGULAR_FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
   const MIN_TIME_BETWEEN_STRONG_FX = beat_layer.effect("MIN_TIME_BETWEEN_STRONG_FX")("Slider").value;
   const FORCE_DEACTIVATE_FX_AFTER = beat_layer.effect("FORCE_DEACTIVATE_FX_AFTER")("Slider").value;
+  const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
   const scale_MAX_amplitude = beat_layer.effect("scale_MAX_amplitude")("Slider").value;
+  const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
+  const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
+  const scale_ADSR_sustain = beat_layer.effect("scale_ADSR_sustain")("Slider").value;
+  const scale_ADSR_release = beat_layer.effect("scale_ADSR_release")("Slider").value;
   const speed_max = beat_layer.effect("speed_max")("Slider").value;
   const speed_avg = beat_layer.effect("speed_avg")("Slider").value;
   const speed_min = beat_layer.effect("speed_min")("Slider").value;
@@ -424,7 +435,6 @@
   const USE_WORKAREA_INSTEAD_OF_CLIPS = beat_layer.effect("USE_WORKAREA_INSTEAD_OF_CLIPS")("Checkbox").value;
   const POINTERS_LEFT_TO_STOP = beat_layer.effect("POINTERS_LEFT_TO_STOP")("Slider").value;
   const hue_drift = beat_layer.effect("hue_drift")("Slider").value;
-  const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
   const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
   const SET_FX_STOP_MARKERS = beat_layer.effect("SET_FX_STOP_MARKERS")("Checkbox").value;
   const CLEAR_FX_MARKERS = beat_layer.effect("CLEAR_FX_MARKERS")("Checkbox").value;
@@ -450,10 +460,12 @@
     2. не кэшировать srcControl. В цикле вызывать каждый раз:
       var curr_value = beat_layer.effect("BCC Beat Reactor")("Output Value C").valueAtTime(time, false);
   */
-  create_new_or_return_existing_control(beat_layer, "script_output", "Color");
-  create_new_or_return_existing_control(beat_layer, "script_output1", "Slider");
-  const script_output0_control = beat_layer.effect("script_output")("Color");
-  const script_output1_control = beat_layer.effect("script_output1")("Slider");
+  create_new_or_return_existing_control(beat_layer, "script_output012", "Point3D");
+  create_new_or_return_existing_control(beat_layer, "script_output345", "Point3D");
+  create_new_or_return_existing_control(beat_layer, "script_output678", "Point3D");
+  const script_output012_control = beat_layer.effect("script_output012")("3D Point");
+  const script_output345_control = beat_layer.effect("script_output345")("3D Point");
+  const script_output678_control = beat_layer.effect("script_output678")("3D Point");
 
   const input_C_control = beat_layer.effect("BCC Beat Reactor")("Output Value C"); // в выражении для Amount эффекта S_WarpFishEye: -thisComp.layer("beat").effect("BCC Beat Reactor")("Output Value C") * 0.25
   // const input_A_control = beat_layer.effect("BCC Beat Reactor")("Output Value A");
@@ -609,23 +621,26 @@
   var effect_picker_state = {
     min_time_between_strong_fx: MIN_TIME_BETWEEN_STRONG_FX,
     last_strong_FX_time: null,
-    last_pick_was_weak: true, // как «после слабого» — первый выбор в режиме strong/weak будет сильным
+    strong_counter: 0,
+    weak_counter: 0,
+    cooldown_weak_counter_already_incremented: false,
     legacy_effect_sequence: {
       queue: get_random_permutation(TOTAL_EFFECTS - 1),
       index: 0,
+      effect_triggered_total: [],
     },
     weak_effect_sequence: {
-      queue: fisher_yates_shuffle([1, 2]),
+      queue: fisher_yates_shuffle([2]),
       index: 0,
+      effect_triggered_total: [],
     },
     strong_effect_sequence: {
-      queue: fisher_yates_shuffle([0, 3]),
+      queue: fisher_yates_shuffle([0, 1, 3, 4, 5]),
       index: 0,
+      effect_triggered_total: [],
     },
   };
   var effect_number = undefined;
-  const effect_triggered_total = []; for (var i = 0; i < TOTAL_EFFECTS; i++) effect_triggered_total[i] = 0;
-  const effect_triggered_values = [];
 
   /**
    * effect_sequence: { queue: Array, index: number }.
@@ -633,18 +648,25 @@
    */
   function next_from_shuffled_cycle(effect_sequence) {
     var queue = effect_sequence.queue;
+
     if (effect_sequence.index >= queue.length) {
       fisher_yates_shuffle(queue);
       effect_sequence.index = 0;
     }
+
+    if (!effect_sequence.effect_triggered_total[effect_sequence.index]) effect_sequence.effect_triggered_total[effect_sequence.index] = 0;
+    effect_sequence.effect_triggered_total[effect_sequence.index]++;
+
     return queue[effect_sequence.index++];
   }
 
   /**
-   * Выбор номера эффекта. Второй аргумент — мутабельное состояние (очереди, last_strong_FX_time, last_pick_was_weak).
+   * Выбор номера эффекта. state — мутабельное: очереди, last_strong_FX_time, weak_counter, strong_counter, cooldown_weak_counter_already_incremented.
    * При min_time_between_strong_fx <= 0 — одна legacy-очередь без разделения сильных/слабых.
-   * Иначе: в окне cooldown после сильного — только слабая очередь; после окна — чередование слабый ↔ сильный по last_pick_was_weak
-   * (флаг сохраняется между вызовами, в т.ч. при долгой паузе без триггеров).
+   * Иначе: в окне cooldown после сильного — только слабая очередь. За всё это окно weak_counter увеличивается максимум один раз
+   * (флаг cooldown_weak_counter_already_incremented); остальные слабые в том же окне только из очереди, без инкремента.
+   * После окна: баланс по уже накопленным weak_counter/strong_counter (ещё без текущего шага); при |strong − weak| > 1 — компенсация; иначе 50/50;
+   * затем инкремент счётчика и выбор из weak_effect_sequence или strong_effect_sequence. У сильного — last_strong_FX_time = time.
    */
   function pick_next_effect_number(time, state) {
     if (state.min_time_between_strong_fx <= 0) return next_from_shuffled_cycle(state.legacy_effect_sequence);
@@ -654,19 +676,30 @@
       state.last_strong_FX_time !== null &&
       time - state.last_strong_FX_time < state.min_time_between_strong_fx
     ) {
-      state.last_pick_was_weak = true;
+      // Слабый счётчик для баланса — не чаще 1 раза за всё это cooldown-окно; дальше в окне только эффекты из очереди.
+      if (!state.cooldown_weak_counter_already_incremented) {
+        state.weak_counter++;
+        // state.cooldown_weak_counter_already_incremented = true; // TODO ?
+      }
       return next_from_shuffled_cycle(state.weak_effect_sequence);
     }
 
-    // После окна: чередование слабый ↔ сильный по факту предыдущего выбора.
-    if (state.last_pick_was_weak) {
-      state.last_pick_was_weak = false;
+    // Вышли из cooldown — к следующему окну снова можно один раз учесть слабый в weak_counter.
+    state.cooldown_weak_counter_already_incremented = false;
+
+    var next_weak = undefined;
+    if (state.strong_counter - state.weak_counter > 1) next_weak = true;
+    if (state.weak_counter - state.strong_counter > 1) next_weak = false;
+    if (next_weak === undefined) next_weak = Math.random() < 0.5;
+
+    if (next_weak !== true && next_weak !== false) throw new Error("next_weak !== true && next_weak !== false");
+    if (!next_weak) {
       state.last_strong_FX_time = time;
+      state.strong_counter++;
       return next_from_shuffled_cycle(state.strong_effect_sequence);
-    } else {
-      state.last_pick_was_weak = true;
-      return next_from_shuffled_cycle(state.weak_effect_sequence);
     }
+    state.weak_counter++;
+    return next_from_shuffled_cycle(state.weak_effect_sequence);
   }
 
   var FX_triggered_total = 0;
@@ -677,14 +710,14 @@
   const windows_stats_values = [];
 
   var use_both_FX1_variants = false;
+  var use_2nd_FX1_variant = false;
+
+  var FX4_value = 0;
+  var FX5_value = 0;
+  var FX6_value = 0;
 
   var opacity = 100;
-  var time_to_revert_opacity = null;
 
-  const scale_ADSR_attack = 0.1;
-  const scale_ADSR_delay = 0.1;
-  const scale_ADSR_sustain = 0.0;
-  const scale_ADSR_release = 0.0;
   var scale_ADSR_activation_time = null;
   var scale_ADSR_deactivation_time = null;
 
@@ -704,8 +737,9 @@
   var setValuesAtTimes_called_times = 0;
 
   const frame_times = new Array(frames_batch_size);
-  const frame_output0_values = new Array(frames_batch_size);
-  const frame_output1_values = new Array(frames_batch_size);
+  const frame_output012_values = new Array(frames_batch_size);
+  const frame_output345_values = new Array(frames_batch_size);
+  const frame_output678_values = new Array(frames_batch_size);
 
   // графики строятся в get_spd_from_src.plot.html
   function get_spd_from_src(src_value, src_low, src_mid, src_high, spd_low, spd_mid, spd_high) {
@@ -882,11 +916,6 @@
         }
       }
 
-      if (time_to_revert_opacity !== null && time >= time_to_revert_opacity) {
-        opacity = 100;
-        time_to_revert_opacity = null;
-      }
-
       if (FX_triggered) {
         if (pointers[pointer_index].bounced_total && pointers[pointer_index].bounced_total === old_bounced_total) {
           var elapsed_since_last_bounce = time - pointers[pointer_index].last_bounce_time;
@@ -902,11 +931,31 @@
 
         var prev_effect_number = effect_number;
         effect_number = pick_next_effect_number(time, effect_picker_state);
-        effect_triggered_total[effect_number]++;
 
         if (SET_FX_MARKERS && set_marker_for_effect[effect_number]) set_effect_marker_on_layer(beat_layer, time, effect_number);
 
-        if (effect_number !== 1 && effect_number !== 2) opacity = 100;
+        /**/
+        if (effect_number === 3) { // ???
+          // if (FX4_value && Math.random() < 0.5) FX4_value = 0;
+          // if (FX5_value && Math.random() < 0.5) FX5_value = 0;
+          FX4_value = 0;
+          FX5_value = 0;
+        }
+        if (effect_number === 4) {
+          if (FX4_value === 0) FX4_value = 1;
+          else if (FX4_value === 1) FX4_value = 0;
+          else throw new Error("Effect #" + effect_number + " error: unexpected value (" + FX4_value + ")");
+          effect_number = 3; // !!!
+        }
+        if (effect_number === 5) {
+          if (FX5_value === 0) FX5_value = 128;
+          else if (FX5_value === 128) FX5_value = 0;
+          else throw new Error("Effect #" + effect_number + " error: unexpected value (" + FX5_value + ")");
+          effect_number = 3; // !!!
+        }
+        /**/
+
+        // if (effect_number !== 6) FX6_value = 0;
 
         if (effect_number === 0) { // horizontal inversion
           hue += 0.5;
@@ -914,16 +963,21 @@
         }
         else if (effect_number === 1) { // scale forward then backward
           // if (prev_effect_number === 1) sgn *= -1; // TODO ?
-          use_both_FX1_variants = (prev_effect_number === 1); // TODO ?
+          // use_2nd_FX1_variant = !use_2nd_FX1_variant; // TODO ?
+          // use_both_FX1_variants = (prev_effect_number === 1); // TODO ?
+          // use_both_FX1_variants = !use_both_FX1_variants; // TODO ?
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
-          time_to_revert_opacity = time + scale_ADSR_attack;
         }
         else if (effect_number === 2) { // opacity
-          time_to_revert_opacity = null;
-          if (opacity === 100) opacity = 50;
-          else if (opacity === 50) opacity = 0;
-          else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
+          if (prev_effect_number === 2)
+            opacity = 33;
+          else {
+            if (opacity === 100) opacity = 66;
+            else if (opacity === 66) opacity = 100;
+            else if (opacity === 33) opacity = Math.random() < 0.5 ? 66 : 100;
+            else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
+          }
         }
         else if (effect_number === 3) { // jump in time
           var prev_pointer_number = pointers[pointer_index].number;
@@ -987,7 +1041,13 @@
           if (pointers[pointer_index].current_position === pointers[pointer_index].starting_position) pointers[pointer_index].current_position += frame_duration;
           current_position = pointers[pointer_index].current_position;
         }
+        // else if (effect_number === 6) {
+        //   if (prev_effect_number === 6) FX6_value = 2;
+        //   else FX6_value = 1;
+        // }
       }
+
+      // НЕТ FX6 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       /* */
       var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
@@ -1003,6 +1063,13 @@
         );
       var scale_rc_signal = rc_signal(scale_input, time, scale_rc_signal_state);
 
+      /* */
+      var signed_scale = sgn * scale_ADSR;
+      /* *
+      var signed_scale = use_2nd_FX1_variant
+        ? sgn * scale_rc_signal
+        : sgn * scale_ADSR;
+      /* *
       if (effect_number !== 1 && effect_number !== 2) use_both_FX1_variants = false;
       var signed_scale = use_both_FX1_variants
         ? sgn * Math.max(scale_ADSR, scale_rc_signal)
@@ -1029,39 +1096,86 @@
 
       hue = fract_abs(hue + hue_drift);
 
-      /*
-      В After Effects выражениях:
-        Time Remap:
-          thisComp.layer("beat").effect("script_output")("Color")[0];
-        S_WarpFishEye Amount:
-          thisComp.layer("beat").effect("script_output")("Color")[3];
-        CC Composite (Transfer Mode = Luminosity) {after S_WarpFishEye and before S_HueSatBright} Opacity:
-          thisComp.layer("beat").effect("script_output1")("Slider");
-        BCC Hue-Sat-Lightness (режим "Color Space" = "HSLuma" - вроде как не портит яркость, по крайней мере если после посмотреть через Tint):
-          thisComp.layer("beat").effect("script_output")("Color")[2];
-        Transform Scale:
-          signed_scale = thisComp.layer("beat").effect("script_output")("Color")[1]; // [100;200] | [-100;-200]
+      /* В After Effects выражениях (три 3D Point: script_output012 / script_output345 / script_output678):
+
+      Time Remap
+        thisComp.layer("beat").effect("script_output012")("3D Point")[0];
+
+      Effects
+        S_WarpFishEye
+          Amount:
+            thisComp.layer("beat").effect("script_output345")("3D Point")[0];
+        S_BlurMotion
+          From Z Dist:
+            1
+          To Z Dist:
+            // FX4 = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
+            // 1 - 0.1 * FX4;            
+            0.9
+          Exposure Bias:
+            // FX4 = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
+            // FX4 > 1 ? 1 : 0;       
+            0
+        CC Composite
+          Opacity:
+            thisComp.layer("beat").effect("script_output345")("3D Point")[1];
+          Transfer Mode: Luminosity
+        BCC+X-Ray
+          Mix with Original
+            FX4 = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
+            FX4 ? 0 : 100;
+        BCC Hue-Sat-Lightness
+          Color Space: HSLuma (вроде как не портит яркость, по крайней мере если после посмотреть через Tint)
+          Hue:
+            thisComp.layer("beat").effect("script_output012")("3D Point")[2];
+        BCC Mixed Colors
+          Scale X: 1-1000
+            FX5 = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
+            FX5;
+          Detail: 10
+          Coarseness: 10
+          Mutation:
+            Math.sin(0.0005 * time) * 1000;
+          Opacity:
+            FX5 = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
+            FX5 ? 100 : 0;
+
+      Transform
+        Scale:
+          signed_scale = thisComp.layer("beat").effect("script_output012")("3D Point")[1];
           [signed_scale, Math.abs(signed_scale)];
-        Transform Anchor Point:
-          center_x = thisComp.layer("beat").effect("script_output1")("Color")[1];
-          center_y = thisComp.layer("beat").effect("script_output1")("Color")[2];
-          signed_x_scale = thisComp.layer("beat").effect("script_output")("Color")[1];
+
+      --- НИЖЕ НЕИСПОЛЬЗУЕМОЕ ---
+
+      Effects
+        S_BlurMotion
+          "From Z Dist" or "To Z Dist":
+            signed_scale = thisComp.layer("beat").effect("script_output012")("3D Point")[1]; // [100;200] | [-100;-200]
+            unsigned_normalized = (Math.abs(signed_scale) - 100) / 100; // [0;1]
+            1 - 0.1 * unsigned_normalized;
+      Transform
+        Anchor Point:
+          center_x = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
+          center_y = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
+          signed_x_scale = thisComp.layer("beat").effect("script_output012")("3D Point")[1];
           if (signed_x_scale < 0) center_x = thisComp.width - center_x; // это надо сделать либо для Anchor Point, либо для Position
           [center_x, center_y];
-        Transform Position:
-          center_x = thisComp.layer("beat").effect("script_output1")("Color")[1];
-          center_y = thisComp.layer("beat").effect("script_output1")("Color")[2];
+        Position:
+          center_x = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
+          center_y = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
           [center_x, center_y];
       */
       frame_times[index_in_batch] = time;
-      frame_output0_values[index_in_batch] = [current_position, signed_scale, hue * 360, S_WarpFishEye_Amount];
-      frame_output1_values[index_in_batch] = opacity;
+      frame_output012_values[index_in_batch] = [current_position, signed_scale, hue * 360];
+      frame_output345_values[index_in_batch] = [S_WarpFishEye_Amount, opacity, FX4_value];
+      frame_output678_values[index_in_batch] = [FX5_value, FX6_value, 0];
     }
 
     var setValuesAtTimes_start_time = Date.now();
     // Если последняя порция неполная, не используем slice, т.к. в конце просто останутся старые значения из предыдущих итераций
-    script_output0_control.setValuesAtTimes(frame_times, frame_output0_values);
-    script_output1_control.setValuesAtTimes(frame_times, frame_output1_values);
+    script_output012_control.setValuesAtTimes(frame_times, frame_output012_values);
+    script_output345_control.setValuesAtTimes(frame_times, frame_output345_values);
+    script_output678_control.setValuesAtTimes(frame_times, frame_output678_values);
     var setValuesAtTimes_end_time = Date.now();
     setValuesAtTimes_total_time += (setValuesAtTimes_end_time - setValuesAtTimes_start_time) / 1000;
     setValuesAtTimes_called_times++;
@@ -1093,7 +1207,6 @@
   const unique_accumulated_time_minutes = unique_accumulated_time / 60;
   const total_accumulated_time_minutes = total_accumulated_time / 60;
   const unique_to_total_ratio = total_accumulated_time > 0 ? unique_accumulated_time / total_accumulated_time : 0;
-  const total_accumulated_time_per_effect3 = effect_triggered_total[3] > 0 ? total_accumulated_time / effect_triggered_total[3] : 0;
   const stopped_at_message = time_processing_stopped_at !== null ? "STOPPED AT " + time_processing_stopped_at + "\n" : "";
   const processed_duration_minutes = time_processing_stopped_at !== null ? (time_processing_stopped_at - work_start_time) / 60 : work_area_duration_minutes;
 
@@ -1128,17 +1241,21 @@
     "deactivate_min_avg = " + deactivate_min_avg + "\n" +
     "activate_avg_max = " + activate_avg_max + "\n" +
     // "?activate_avg_max? * inputs_ABC_max_value = " + activate_avg_max * inputs_ABC_max_value + "\n" + // TODO ?
-    "auto_correction_window SECONDS = " + auto_correction_window + "\n" +
     "FX_triggered_total = " + FX_triggered_total + "\n" +
     "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
     // "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total + "\n" +
     "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
     "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
+    // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
     "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
     "MIN_TIME_BETWEEN_STRONG_FX = " + MIN_TIME_BETWEEN_STRONG_FX + "\n" +
     "FORCE_DEACTIVATE_FX_AFTER = " + FORCE_DEACTIVATE_FX_AFTER + "\n" +
-    // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
+    "auto_correction_window SECONDS = " + auto_correction_window + "\n" +
     "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
+    "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
+    "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
+    // "scale_ADSR_sustain = " + scale_ADSR_sustain + "\n" +
+    // "scale_ADSR_release = " + scale_ADSR_release + "\n" +
     "speed_max = " + speed_max + "\n" +
     "speed_avg = " + speed_avg + "\n" +
     "speed_min = " + speed_min + "\n" +
@@ -1173,11 +1290,13 @@
     "then_unique_reach_video_duration = " + then_unique_reach_video_duration + "\n" +
     "unique_to_total_ratio = " + unique_to_total_ratio + "\n" +
     "total_accumulated_time_minutes = " + total_accumulated_time_minutes + "\n" +
-    "total_accumulated_time_per_effect3 = " + total_accumulated_time_per_effect3 + "\n" +
     "total_accumulated_time / processed_duration = " + total_accumulated_time_minutes / processed_duration_minutes + "\n" +
     "processed_duration / video_duration = " + processed_duration_minutes / video_duration_minutes + "\n" +
     "processed_duration_minutes = " + processed_duration_minutes + "\n" +
-    "effect_triggered_total = " + JSON.stringify(effect_triggered_total) + "\n" +
+    // "legacy effect_triggered_total = " + JSON.stringify(effect_picker_state.legacy_effect_sequence.effect_triggered_total) + "\n" +
+    "weak effect_triggered_total = " + JSON.stringify(effect_picker_state.weak_effect_sequence.effect_triggered_total) + "\n" +
+    "strong effect_triggered_total = " + JSON.stringify(effect_picker_state.strong_effect_sequence.effect_triggered_total) + "\n" +
+    "effect_picker_state = " + JSON.stringify(effect_picker_state) + "\n" +
     "input_C_deactivation_value_equal_activation_value = " + input_C_deactivation_value_equal_activation_value + "\n" +
     "windows_stats_max_equal_min = " + windows_stats_max_equal_min + "\n" +
     "pointers_counters = " + JSON.stringify(pointers_counters) + "\n" +
