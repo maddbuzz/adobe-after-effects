@@ -282,7 +282,10 @@
     return padTwoDigits(hours) + ":" + padTwoDigits(minutes) + ":" + padTwoDigits(secs);
   }
 
-  function showScrollableDialog(title, message) {
+  function showScrollableDialog(title, message, scrollWidth, scrollHeight, innerMargin) {
+    var textAreaWidth = scrollWidth - innerMargin;
+    var textAreaHeight = scrollHeight - innerMargin;
+
     var win = new Window("dialog", title);
     win.orientation = "column";
     win.alignChildren = "fill";
@@ -290,12 +293,12 @@
     var scrollGroup = win.add("group");
     scrollGroup.orientation = "column";
     scrollGroup.alignChildren = "fill";
-    scrollGroup.preferredSize.width = 600;
-    scrollGroup.preferredSize.height = 400;
+    scrollGroup.preferredSize.width = scrollWidth;
+    scrollGroup.preferredSize.height = scrollHeight;
 
     var textArea = scrollGroup.add("edittext", undefined, message, { multiline: true, scrolling: true, readonly: true });
-    textArea.preferredSize.width = 580;
-    textArea.preferredSize.height = 380;
+    textArea.preferredSize.width = textAreaWidth;
+    textArea.preferredSize.height = textAreaHeight;
 
     var buttonGroup = win.add("group");
     buttonGroup.alignment = "center";
@@ -1291,6 +1294,6 @@
     alert("Не удалось сохранить статистику в:\n" + statsPath);
   }
 
-  showScrollableDialog(script_filename, alert_message);
+  showScrollableDialog(script_filename, alert_message, 1000, 800, 20);
 
 })();
