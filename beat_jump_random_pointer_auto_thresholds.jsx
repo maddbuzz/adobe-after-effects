@@ -210,6 +210,34 @@
     return a + (b - a) * t;
   }
 
+  /**
+   * Плавный bcc_x_ray: активация (target 1), если last_FX_activation_time задано и
+   * (time - last_FX_activation_time) > silence_time_before_activation; иначе деактивация (target 0).
+   * Смена цели — постоянная скорость в mix/сек: к 1 — полный ход 0→1 за activation_transition_time,
+   * к 0 — полный ход 1→0 за deactivation_transition_time; частичный путь — |Δmix| * соответствующее время.
+   * Мутирует x_ray_state (один вызов на кадр).
+   */
+  function compute_bcc_x_ray_step(state, time, last_FX_activation_time, previous_mix_value, silence_time_before_activation, activation_transition_time, deactivation_transition_time) {
+    var target_mix = 0;
+    if (last_FX_activation_time !== null) {
+      var elapsed_since_last_fx = time - last_FX_activation_time;
+      target_mix = elapsed_since_last_fx > silence_time_before_activation ? 1 : 0;
+    }
+    if (target_mix !== state.last_target_mix) {
+      state.mix_transition_start_time = time;
+      state.mix_at_transition_start = previous_mix_value;
+      state.last_target_mix = target_mix;
+    }
+    var mix_span = Math.abs(target_mix - state.mix_at_transition_start);
+    var full_transition_time = target_mix === 1 ? activation_transition_time : deactivation_transition_time;
+    var transition_duration = mix_span * full_transition_time;
+    if (transition_duration <= 0) {
+      return target_mix;
+    }
+    var transition_progress = Math.min(1, (time - state.mix_transition_start_time) / transition_duration);
+    return lerp(state.mix_at_transition_start, target_mix, transition_progress);
+  }
+
   function getRandomInRange(start_inclusive, end_exclusive) {
     return lerp(start_inclusive, end_exclusive, Math.random());
   }
@@ -290,7 +318,7 @@
 
   function set_effect_marker_on_layer(layer, time, effect_number, is_stop) {
     // labelIndex цвет? (зависит от Preferences > Labels): 1=Red, 2=Yellow, 3=Green, 4=Blue
-    var labelIndex = is_stop ? 0 : effect_number + 1;
+    var labelIndex = is_stop ? 0 : effect_number;
 
     var comment = is_stop ? ("s" + String(effect_number)) : String(effect_number);
     var markerProp = layer.marker;
@@ -396,10 +424,9 @@
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "SET_FX_STOP_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
-  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_0", "Checkbox", true);
-  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_1", "Checkbox", true);
-  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_2", "Checkbox", true);
-  create_new_or_return_existing_control(beat_layer, "SET_FX_MARKER_EFFECT_3", "Checkbox", true);
+  create_new_or_return_existing_control(beat_layer, "XRAY_SILENCE_TIME_BEFORE_ACTIVATION", "Slider", 2);
+  create_new_or_return_existing_control(beat_layer, "XRAY_ACTIVATION_TRANSITION_TIME", "Slider", 1);
+  create_new_or_return_existing_control(beat_layer, "XRAY_DEACTIVATION_TRANSITION_TIME", "Slider", 0);
 
   // эти значения ниже будут считаны из слайдеров только один раз (для времени comp.time, соответсвующего положению playhead):
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
@@ -436,12 +463,9 @@
   const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
   const SET_FX_STOP_MARKERS = beat_layer.effect("SET_FX_STOP_MARKERS")("Checkbox").value;
   const CLEAR_FX_MARKERS = beat_layer.effect("CLEAR_FX_MARKERS")("Checkbox").value;
-  const SET_FX_MARKER_EFFECT_0 = beat_layer.effect("SET_FX_MARKER_EFFECT_0")("Checkbox").value;
-  const SET_FX_MARKER_EFFECT_1 = beat_layer.effect("SET_FX_MARKER_EFFECT_1")("Checkbox").value;
-  const SET_FX_MARKER_EFFECT_2 = beat_layer.effect("SET_FX_MARKER_EFFECT_2")("Checkbox").value;
-  const SET_FX_MARKER_EFFECT_3 = beat_layer.effect("SET_FX_MARKER_EFFECT_3")("Checkbox").value;
-
-  const set_marker_for_effect = [SET_FX_MARKER_EFFECT_0, SET_FX_MARKER_EFFECT_1, SET_FX_MARKER_EFFECT_2, SET_FX_MARKER_EFFECT_3];
+  const XRAY_SILENCE_TIME_BEFORE_ACTIVATION = beat_layer.effect("XRAY_SILENCE_TIME_BEFORE_ACTIVATION")("Slider").value;
+  const XRAY_ACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_ACTIVATION_TRANSITION_TIME")("Slider").value;
+  const XRAY_DEACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_DEACTIVATION_TRANSITION_TIME")("Slider").value;
 
   /*
     Этот скрипт всегда дает ошибку "Unable to execute script at line 113. Object is invalid" если слайдер tgtControl (с именем "script_output") еще не существует на момент запуска скрипта.
@@ -615,9 +639,9 @@
   var hue = getRandomInRange(0, 1);
   var sgn = +1;
 
-  // const TOTAL_EFFECTS = 4; // 0 - horizontal inversion, 1 - scale forward then backward, 2 - opacity, 3 - jump in time
   var effect_sequence = {
-    queue: fisher_yates_shuffle([0, 1, 3, 4, 5]), // !!!
+    // 1: scale forward then backward, 2: horizontal inversion, 3: jump in time, 4: (bcc_mixed_colors + 3)
+    queue: fisher_yates_shuffle([1, 2, 3, 4]), // !!!
     index: 0,
     effect_triggered_total: [],
   };
@@ -651,8 +675,14 @@
   var use_both_FX1_variants = false;
   var use_2nd_FX1_variant = false;
 
-  var bcc_x_ray = 0;
   var bcc_mixed_colors = 0;
+  
+  var bcc_x_ray = 0;
+  var x_ray_state = {
+    last_target_mix: 0,
+    mix_transition_start_time: work_start_time,
+    mix_at_transition_start: 0,
+  };
 
   var opacity = 100;
 
@@ -764,7 +794,7 @@
 
       if (!is_FX_active) {
         // input_C_activation_value = lerp(window_stats.avg, window_stats.max, activate_avg_max); // TODO ?
-        input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO название activate_avg_max не подходит при таком использовании ?
+        input_C_activation_value = activate_avg_max * inputs_ABC_max_value; // TODO ? название activate_avg_max не подходит при таком использовании - И ВООБЩЕ ЭТО СТАТИЧНОЕ ЗНАЧЕНИЕ получается
       }
 
       if (!speed_inputs) speed_inputs = window_stats;
@@ -868,9 +898,10 @@
         }
 
         var prev_effect_number = effect_number; // ! для 3, 4, 5 prev_effect_number будет 3 
+        // 1: scale forward then backward, 2: horizontal inversion, 3: jump in time, 4: (bcc_mixed_colors + 3)
         effect_number = next_from_shuffled_cycle(effect_sequence);
 
-        if (SET_FX_MARKERS && set_marker_for_effect[effect_number]) set_effect_marker_on_layer(beat_layer, time, effect_number);
+        if (SET_FX_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number);
 
         /**/
         if (effect_number === 3) { // ???
@@ -878,40 +909,40 @@
           bcc_mixed_colors = 0;
         }
         if (effect_number === 4) {
-          if (bcc_x_ray === 0) bcc_x_ray = 1;
-          else if (bcc_x_ray === 1) bcc_x_ray = 0;
-          else throw new Error("Effect #" + effect_number + " error: unexpected value (" + bcc_x_ray + ")");
-          effect_number = 3; // ! для 3, 4, 5 prev_effect_number будет 3 
-        }
-        if (effect_number === 5) {
           if (bcc_mixed_colors === 0) bcc_mixed_colors = 1;
           else if (bcc_mixed_colors === 1) bcc_mixed_colors = 0;
           else throw new Error("Effect #" + effect_number + " error: unexpected value (" + bcc_mixed_colors + ")");
           effect_number = 3; // ! для 3, 4, 5 prev_effect_number будет 3 
         }
+        // if (effect_number === 5) {
+        //   if (bcc_x_ray === 0) bcc_x_ray = 1;
+        //   else if (bcc_x_ray === 1) bcc_x_ray = 0;
+        //   else throw new Error("Effect #" + effect_number + " error: unexpected value (" + bcc_x_ray + ")");
+        //   effect_number = 3; // ! для 3, 4, 5 prev_effect_number будет 3 
+        // }
         /**/
 
         if (effect_number !== 1) { // opacity
-          if (opacity === 100) opacity = 66;
-          else if (opacity === 66) opacity = 33;
-          else if (opacity === 33) opacity = 100;
+          if (opacity === 100) opacity = 75;
+          else if (opacity === 75) opacity = 50;
+          else if (opacity === 50) opacity = 100;
           else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
-        }        
-
-        if (effect_number === 0) { // horizontal inversion
-          sgn *= -1;
-          if (prev_effect_number !== 0)
-            hue += 0.5;
-          else
-            hue += (Math.random() < 0.5 ? +0.25 : +0.75);
         }
-        else if (effect_number === 1) { // scale forward then backward
+
+        if (effect_number === 1) { // scale forward then backward
           // if (prev_effect_number === 1) sgn *= -1; // TODO ?
           // use_2nd_FX1_variant = !use_2nd_FX1_variant; // TODO ?
           // use_both_FX1_variants = (prev_effect_number === 1); // TODO ?
           // use_both_FX1_variants = !use_both_FX1_variants; // TODO ?
           scale_ADSR_activation_time = time;
           scale_ADSR_deactivation_time = time;
+        }
+        else if (effect_number === 2) { // horizontal inversion
+          sgn *= -1;
+          if (prev_effect_number !== 2)
+            hue += 0.5;
+          else
+            hue += (Math.random() < 0.5 ? +0.25 : +0.75);
         }
         else if (effect_number === 3) { // jump in time
           var prev_pointer_number = pointers[pointer_index].number;
@@ -998,7 +1029,7 @@
         ? sgn * scale_rc_signal
         : sgn * scale_ADSR;
       /* *
-      if (effect_number !== 1 && effect_number !== 2) use_both_FX1_variants = false;
+      if (effect_number !== 1) use_both_FX1_variants = false;
       var signed_scale = use_both_FX1_variants
         ? sgn * Math.max(scale_ADSR, scale_rc_signal)
         : sgn * scale_ADSR;
@@ -1024,6 +1055,8 @@
 
       hue = fract_abs(hue + hue_drift);
 
+      bcc_x_ray = compute_bcc_x_ray_step(x_ray_state, time, last_FX_activation_time, bcc_x_ray, XRAY_SILENCE_TIME_BEFORE_ACTIVATION, XRAY_ACTIVATION_TRANSITION_TIME, XRAY_DEACTIVATION_TRANSITION_TIME);
+
       /* В After Effects выражениях (три 3D Point: script_output012 / script_output345 / script_output678):
 
       Time Remap
@@ -1044,7 +1077,7 @@
         BCC+X-Ray
           Mix with Original
             bcc_x_ray = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
-            bcc_x_ray ? 0 : 100;
+            (1 - bcc_x_ray) * 100;
         BCC Hue-Sat-Lightness
           Color Space: HSLuma (вроде как не портит яркость, по крайней мере если после посмотреть через Tint)
           Hue:
@@ -1087,7 +1120,7 @@
       frame_times[index_in_batch] = time;
       frame_output012_values[index_in_batch] = [current_position, signed_scale, hue * 360];
       frame_output345_values[index_in_batch] = [S_WarpFishEye_Amount, opacity, bcc_x_ray];
-      frame_output678_values[index_in_batch] = [bcc_mixed_colors, 0, 0]; // ! два неиспользуются - можно заменить на Slider
+      frame_output678_values[index_in_batch] = [bcc_mixed_colors, 0, 0]; // ? если два не используются - может заменить на Slider
     }
 
     var setValuesAtTimes_start_time = Date.now();
@@ -1219,7 +1252,9 @@
     "SET_FX_MARKERS = " + SET_FX_MARKERS + "\n" +
     "SET_FX_STOP_MARKERS = " + SET_FX_STOP_MARKERS + "\n" +
     "CLEAR_FX_MARKERS = " + CLEAR_FX_MARKERS + "\n" +
-    // "SET_FX_MARKER_EFFECT_0..3 = " + SET_FX_MARKER_EFFECT_0 + "," + SET_FX_MARKER_EFFECT_1 + "," + SET_FX_MARKER_EFFECT_2 + "," + SET_FX_MARKER_EFFECT_3 + "\n" +
+    "XRAY_SILENCE_TIME_BEFORE_ACTIVATION = " + XRAY_SILENCE_TIME_BEFORE_ACTIVATION + "\n" +
+    "XRAY_ACTIVATION_TRANSITION_TIME = " + XRAY_ACTIVATION_TRANSITION_TIME + "\n" +
+    "XRAY_DEACTIVATION_TRANSITION_TIME = " + XRAY_DEACTIVATION_TRANSITION_TIME + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
