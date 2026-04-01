@@ -211,31 +211,43 @@
   }
 
   /**
-   * Плавный bcc_x_ray: активация (target 1), если last_FX_activation_time задано и
-   * (time - last_FX_activation_time) > silence_time_before_activation; иначе деактивация (target 0).
-   * Смена цели — постоянная скорость в mix/сек: к 1 — полный ход 0→1 за activation_transition_time,
-   * к 0 — полный ход 1→0 за deactivation_transition_time; частичный путь — |Δmix| * соответствующее время.
-   * Мутирует x_ray_state (один вызов на кадр).
+   * Линейный сглаженный переход значения в [0, 1] к целевому 0 или 1.
+   * Цель 1: если задано reference_time_sec и с этого момента прошло не меньше
+   * delay_after_reference_sec секунд; иначе цель 0. При reference_time_sec === null цель всегда 0.
+   * Длительность участка ramp: |transition_target − value_at_ramp_start| × (полное время полного хода 0→1 или 1→0).
+   * Мутирует state. Один вызов на кадр; value_previous_frame — значение с предыдущего кадра.
    */
-  function compute_bcc_x_ray_step(state, time, last_FX_activation_time, previous_mix_value, silence_time_before_activation, activation_transition_time, deactivation_transition_time) {
-    var target_mix = 0;
-    if (last_FX_activation_time !== null) {
-      var elapsed_since_last_fx = time - last_FX_activation_time;
-      target_mix = elapsed_since_last_fx > silence_time_before_activation ? 1 : 0;
+  function transition_010_step(
+    value_previous_frame,
+    state,
+    current_time_sec,
+    reference_time_sec,
+    delay_after_reference_sec,
+    full_ramp_up_duration_sec,
+    full_ramp_down_duration_sec
+  ) {
+    var transition_target = 0;
+    if (reference_time_sec !== null) {
+      var elapsed_since_reference_sec = current_time_sec - reference_time_sec;
+      transition_target = elapsed_since_reference_sec >= delay_after_reference_sec ? 1 : 0;
     }
-    if (target_mix !== state.last_target_mix) {
-      state.mix_transition_start_time = time;
-      state.mix_at_transition_start = previous_mix_value;
-      state.last_target_mix = target_mix;
+    if (transition_target !== state.committed_transition_target) {
+      state.ramp_start_time_sec = current_time_sec;
+      state.value_at_ramp_start = value_previous_frame;
+      state.committed_transition_target = transition_target;
     }
-    var mix_span = Math.abs(target_mix - state.mix_at_transition_start);
-    var full_transition_time = target_mix === 1 ? activation_transition_time : deactivation_transition_time;
-    var transition_duration = mix_span * full_transition_time;
-    if (transition_duration <= 0) {
-      return target_mix;
+    var distance_to_target = Math.abs(transition_target - state.value_at_ramp_start);
+    var chosen_full_ramp_duration_sec =
+      transition_target === 1 ? full_ramp_up_duration_sec : full_ramp_down_duration_sec;
+    var ramp_duration_sec = distance_to_target * chosen_full_ramp_duration_sec;
+    if (ramp_duration_sec <= 0) {
+      return transition_target;
     }
-    var transition_progress = Math.min(1, (time - state.mix_transition_start_time) / transition_duration);
-    return lerp(state.mix_at_transition_start, target_mix, transition_progress);
+    var ramp_t = Math.min(
+      1,
+      (current_time_sec - state.ramp_start_time_sec) / ramp_duration_sec
+    );
+    return lerp(state.value_at_ramp_start, transition_target, ramp_t);
   }
 
   function getRandomInRange(start_inclusive, end_exclusive) {
@@ -678,10 +690,10 @@
   var bcc_mixed_colors = 0;
   
   var bcc_x_ray = 0;
-  var x_ray_state = {
-    last_target_mix: 0,
-    mix_transition_start_time: work_start_time,
-    mix_at_transition_start: 0,
+  var bcc_x_ray_state = {
+    committed_transition_target: 0,
+    ramp_start_time_sec: work_start_time,
+    value_at_ramp_start: bcc_x_ray,
   };
 
   var opacity = 100;
@@ -905,7 +917,6 @@
 
         /**/
         if (effect_number === 3) { // ???
-          bcc_x_ray = 0;
           bcc_mixed_colors = 0;
         }
         if (effect_number === 4) {
@@ -914,12 +925,6 @@
           else throw new Error("Effect #" + effect_number + " error: unexpected value (" + bcc_mixed_colors + ")");
           effect_number = 3; // ! для 3, 4, 5 prev_effect_number будет 3 
         }
-        // if (effect_number === 5) {
-        //   if (bcc_x_ray === 0) bcc_x_ray = 1;
-        //   else if (bcc_x_ray === 1) bcc_x_ray = 0;
-        //   else throw new Error("Effect #" + effect_number + " error: unexpected value (" + bcc_x_ray + ")");
-        //   effect_number = 3; // ! для 3, 4, 5 prev_effect_number будет 3 
-        // }
         /**/
 
         if (effect_number !== 1) { // opacity
@@ -1055,7 +1060,15 @@
 
       hue = fract_abs(hue + hue_drift);
 
-      bcc_x_ray = compute_bcc_x_ray_step(x_ray_state, time, last_FX_activation_time, bcc_x_ray, XRAY_SILENCE_TIME_BEFORE_ACTIVATION, XRAY_ACTIVATION_TRANSITION_TIME, XRAY_DEACTIVATION_TRANSITION_TIME);
+      bcc_x_ray = transition_010_step(
+        bcc_x_ray,
+        bcc_x_ray_state,
+        time,
+        last_FX_activation_time,
+        XRAY_SILENCE_TIME_BEFORE_ACTIVATION,
+        XRAY_ACTIVATION_TRANSITION_TIME,
+        XRAY_DEACTIVATION_TRANSITION_TIME
+      );
 
       /* В After Effects выражениях (три 3D Point: script_output012 / script_output345 / script_output678):
 
