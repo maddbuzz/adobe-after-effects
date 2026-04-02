@@ -211,6 +211,43 @@
   }
 
   /**
+   * Пиковый детектор с холдом + огибающая с фиксированным наклоном: envelope догоняет peak не быстрее attack_speed и decay_speed (единиц/сек).
+   * Вход неотрицательный. При input >= peak — холд peak_hold_seconds. После холда при падении сигнала пик сбрасывается к input и холдится снова на столько же (как и после нового максимума).
+   * Шаг по времени — разница между текущим и предыдущим time_seconds (можно вызывать реже/чаще кадра). time_seconds не должно убывать. До первого вызова: last_time, peak, envelope, attack_speed, decay_speed; peak_hold_until = null (после первого холда — время окончания холда).
+   *
+   * @param input — входной сигнал (число).
+   * @param time_seconds — текущее время в секундах.
+   * @param state — last_time, peak, envelope, peak_hold_seconds, peak_hold_until (null или секунды), attack_speed, decay_speed.
+   * @returns текущее значение огибающей (state.envelope после шага).
+   *
+   * Порядок: сначала шаг огибающей к пику на начало кадра (до сброса по истечению холда), затем обновление peak/hold — иначе на кадре истечения холда пик успевал упасть раньше, чем огибающая «добивала» старый пик.
+   */
+  function pick_hold_envelope(input, time_seconds, state) {
+    var delta_time_sec = time_seconds - state.last_time;
+    state.last_time = time_seconds;
+
+    if (state.envelope < state.peak) {
+      state.envelope = Math.min(state.peak, state.envelope + state.attack_speed * delta_time_sec);
+    } else if (state.envelope > state.peak) {
+      state.envelope = Math.max(state.peak, state.envelope - state.decay_speed * delta_time_sec);
+    }
+
+    if (
+      // 1) peak_hold_until === null — стартовый state, момент окончания холда ещё не задавался.
+      state.peak_hold_until === null ||
+      // 2) time_seconds >= peak_hold_until — холд от предыдущего peak истёк, можно опустить пик к текущему input.
+      time_seconds >= state.peak_hold_until ||
+      // 3) Сигнал выше пика - ставим холд на peak_hold_seconds вперёд, а если равен пику - просто обновляем холд.
+      input >= state.peak
+    ) {
+      state.peak = input;
+      state.peak_hold_until = time_seconds + state.peak_hold_seconds;
+    }
+
+    return state.envelope;
+  }
+
+  /**
    * Линейный сглаженный переход значения в [0, 1] к целевому 0 или 1.
    * Цель 1: если задано reference_time_sec и с этого момента прошло не меньше
    * delay_after_reference_sec секунд; иначе цель 0. При reference_time_sec === null цель всегда 0.
@@ -363,7 +400,6 @@
     }
   }
 
-  /* *
   function format_2_hh_mm_ss_ff(seconds, frame_duration) {
     var h = Math.floor(seconds / 3600);
     var m = Math.floor((seconds % 3600) / 60);
@@ -372,7 +408,6 @@
     var ff = Math.round(seconds / frame_duration) % fps;
     return padTwoDigits(h) + ":" + padTwoDigits(m) + ":" + padTwoDigits(s) + ":" + padTwoDigits(ff);
   }
-  /* */
 
   const script_fullpath = $.fileName; // Возвращает полный путь текущего выполняемого скрипта
   const script_filename = File(script_fullpath).name; // имя файла
@@ -442,6 +477,7 @@
   create_new_or_return_existing_control(beat_layer, "XRAY_SILENCE_TIME_BEFORE_ACTIVATION", "Slider", 2);
   create_new_or_return_existing_control(beat_layer, "XRAY_ACTIVATION_TRANSITION_TIME", "Slider", 1);
   create_new_or_return_existing_control(beat_layer, "XRAY_DEACTIVATION_TRANSITION_TIME", "Slider", 0);
+  create_new_or_return_existing_control(beat_layer, "REQUEST_ONE_BOOM_FX_AFTER_SECONDS", "Slider", 2);
 
   // эти значения ниже будут считаны из слайдеров только один раз (для времени comp.time, соответсвующего положению playhead):
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
@@ -481,6 +517,7 @@
   const XRAY_SILENCE_TIME_BEFORE_ACTIVATION = beat_layer.effect("XRAY_SILENCE_TIME_BEFORE_ACTIVATION")("Slider").value;
   const XRAY_ACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_ACTIVATION_TRANSITION_TIME")("Slider").value;
   const XRAY_DEACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_DEACTIVATION_TRANSITION_TIME")("Slider").value;
+  const REQUEST_ONE_BOOM_FX_AFTER_SECONDS = beat_layer.effect("REQUEST_ONE_BOOM_FX_AFTER_SECONDS")("Slider").value;
 
   /*
     Этот скрипт всегда дает ошибку "Unable to execute script at line 113. Object is invalid" если слайдер tgtControl (с именем "script_output") еще не существует на момент запуска скрипта.
@@ -656,7 +693,8 @@
 
   var effect_sequence = {
     // 1: scale forward then backward, 2: horizontal inversion, 3: jump in time, 4: (bcc_mixed_colors + 3)
-    queue: fisher_yates_shuffle([1, 2, 3, 4]), // !!!
+    // queue: fisher_yates_shuffle([1, 2, 3, 4]), // !!!
+    queue: fisher_yates_shuffle([2, 3, 4]), // !!!
     index: 0,
     effect_triggered_total: [],
   };
@@ -687,11 +725,8 @@
   var FX_triggered_but_skipped = 0;
   const windows_stats_values = [];
 
-  var use_both_FX1_variants = false;
-  var use_2nd_FX1_variant = false;
-
   var bcc_mixed_colors = 0;
-  
+
   var bcc_x_ray = 0;
   var bcc_x_ray_state = {
     committed_transition_target: 0,
@@ -703,6 +738,18 @@
 
   var scale_ADSR_activation_time = null;
   var scale_ADSR_deactivation_time = null;
+  var need_one_boom_fx = true;
+  var last_boom_fx_time = null;
+
+  var scale_pick_hold_envelope_state = {
+    peak_hold_seconds: 0.09146341,
+    attack_speed: (inputs_ABC_max_value - inputs_ABC_min_value) / 0.09146341,
+    decay_speed: (inputs_ABC_max_value - inputs_ABC_min_value) / 0.27439024,
+    last_time: work_start_time - frame_duration,
+    peak: 0,
+    envelope: 0,
+    peak_hold_until: null,
+  };
 
   var S_WarpFishEye_Amount = 0; // [-10, +10]
 
@@ -887,11 +934,10 @@
           FX_triggered_total++;
           // Проверяем, прошло ли достаточно времени с момента последней активации
           if ((last_FX_activation_time !== null) && (time - last_FX_activation_time < REGULAR_FX_MIN_ACTIVATION_INTERVAL)) {
-            // use_quickFX_instead_of_regular = true;
             FX_triggered_but_skipped++;
           } else {
-            // use_quickFX_instead_of_regular = false;
-
+            // if (last_boom_fx_time === null || time - last_boom_fx_time >= REQUEST_ONE_BOOM_FX_AFTER_SECONDS) need_one_boom_fx = true;
+            if (time - last_FX_activation_time >= REQUEST_ONE_BOOM_FX_AFTER_SECONDS) need_one_boom_fx = true;
             last_FX_activation_time = time; // запоминаем время активации
             is_FX_active = true;
             FX_triggered = true;
@@ -918,6 +964,20 @@
 
         if (SET_FX_MARKERS) set_effect_marker_on_layer(beat_layer, time, effect_number);
 
+        if (effect_number !== 1) {
+          if (opacity === 100) opacity = 75;
+          else if (opacity === 75) opacity = 50;
+          else if (opacity === 50) opacity = 100;
+          else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
+        }
+
+        if (need_one_boom_fx) {
+          need_one_boom_fx = false;
+          last_boom_fx_time = time;
+          scale_ADSR_activation_time = time;
+          scale_ADSR_deactivation_time = time;
+        }
+
         /**/
         if (effect_number === 3) { // ???
           bcc_mixed_colors = 0;
@@ -930,20 +990,11 @@
         }
         /**/
 
-        if (effect_number !== 1) { // opacity
-          if (opacity === 100) opacity = 75;
-          else if (opacity === 75) opacity = 50;
-          else if (opacity === 50) opacity = 100;
-          else throw new Error("Effect #" + effect_number + " error: unexpected opacity (" + opacity + ")");
-        }
-
         if (effect_number === 1) { // scale forward then backward
+          throw new Error("effect_number === 1"); // ! ???????
           // if (prev_effect_number === 1) sgn *= -1; // TODO ?
-          // use_2nd_FX1_variant = !use_2nd_FX1_variant; // TODO ?
-          // use_both_FX1_variants = (prev_effect_number === 1); // TODO ?
-          // use_both_FX1_variants = !use_both_FX1_variants; // TODO ?
-          scale_ADSR_activation_time = time;
-          scale_ADSR_deactivation_time = time;
+          // scale_ADSR_activation_time = time;
+          // scale_ADSR_deactivation_time = time;
         }
         else if (effect_number === 2) { // horizontal inversion
           sgn *= -1;
@@ -1016,34 +1067,22 @@
         }
       }
 
-      /* */
+      /**
+      var scale_envelope = pick_hold_envelope(
+        effect_number === 1 ? input_C_value : 0,
+        time,
+        scale_pick_hold_envelope_state);
+      var scale_envelope_normalized = (scale_envelope - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value);
+      var scale_envelope_value = 100 + scale_MAX_amplitude * scale_envelope_normalized;
+      var signed_scale = sgn * scale_envelope_value;
+      /**/
       var scale_ADSR_normalized = get_ADSR_amplitude(time, scale_ADSR_activation_time, scale_ADSR_deactivation_time, is_FX_active, scale_ADSR_attack, scale_ADSR_delay, scale_ADSR_sustain, scale_ADSR_release);
       var scale_ADSR_amplitude = scale_MAX_amplitude * scale_ADSR_normalized;
       var scale_ADSR = 100 + scale_ADSR_amplitude;
-
-      var scale_input = effect_number !== 1
-        ? 100
-        : lerp(
-          100,
-          100 + scale_MAX_amplitude,
-          (input_C_value - inputs_ABC_min_value) / (inputs_ABC_max_value - inputs_ABC_min_value),
-        );
-      var scale_rc_signal = rc_signal(scale_input, time, scale_rc_signal_state);
-
-      /* */
       var signed_scale = sgn * scale_ADSR;
-      /* *
-      var signed_scale = use_2nd_FX1_variant
-        ? sgn * scale_rc_signal
-        : sgn * scale_ADSR;
-      /* *
-      if (effect_number !== 1) use_both_FX1_variants = false;
-      var signed_scale = use_both_FX1_variants
-        ? sgn * Math.max(scale_ADSR, scale_rc_signal)
-        : sgn * scale_ADSR;
-      /* */
+      /**/
 
-      /* TODO ? *
+      /* ? TODO ? */
       if (!warp_inputs) warp_inputs = window_stats;
       if (input_C_value <= warp_inputs.min || input_C_value >= warp_inputs.max) warp_inputs = window_stats;
       if (warp_inputs.max - warp_inputs.min !== 0) {
@@ -1053,7 +1092,7 @@
           (input_C_value - warp_inputs.min) / (warp_inputs.max - warp_inputs.min)
         );
       } else S_WarpFishEye_Amount = 0;
-      /* */
+      /* *
       S_WarpFishEye_Amount = lerp(
         0,
         S_WarpFishEye_Amount_neg_max,
@@ -1098,7 +1137,7 @@
           Color Space: HSLuma (вроде как не портит яркость, по крайней мере если после посмотреть через Tint)
           Hue:
             thisComp.layer("beat").effect("script_output012")("3D Point")[2];
-        BCC Mixed Colors
+        BCC Mixed Colors // !!! очень тяжелый эффект - при рендере замедляет в несколько раз
           Scale X: 1, 1000
           Detail: 10
           Coarseness: 10
@@ -1186,7 +1225,7 @@
     var seq = pointer_sequences_stats[i];
     var n = i + 1;
     var length_minutes = seq.duration_minutes.toFixed(1); // округление до 1 знака после запятой
-    var start_time_formatted = formatTime(seq.start_time_seconds);
+    var start_time_formatted = format_2_hh_mm_ss_ff(seq.start_time_seconds, frame_duration);
     pointer_sequences_stats_lines.push(start_time_formatted + " " + n + ": " + length_minutes + "мин, " + seq.real_sequence_size + "/" + seq.pointers_count + "ук\n");
     if (seq.duration_minutes > 0) {
       sum_duration += seq.duration_minutes;
@@ -1235,9 +1274,9 @@
     "ELAPSED_BEFORE_BOUNCE_BWD = " + ELAPSED_BEFORE_BOUNCE_BWD + "\n" +
     "MIN_BOUNCES_TO_REMOVE_POINTER = " + MIN_BOUNCES_TO_REMOVE_POINTER + "\n" +
     "DONT_REMOVE_POINTERS_BELOW = " + DONT_REMOVE_POINTERS_BELOW + "\n" +
-    (time_pointers_reach_threshold ? "time_pointers_reach_threshold = " + formatTime(time_pointers_reach_threshold) + "\n" : "") +
+    (time_pointers_reach_threshold ? "time_pointers_reach_threshold = " + format_2_hh_mm_ss_ff(time_pointers_reach_threshold, frame_duration) + " <---\n" : "") +
     "STOP_IF_ONLY_BOUNCED_LEFT = " + STOP_IF_ONLY_BOUNCED_LEFT + "\n" +
-    (time_only_bounced_left !== null ? "time_only_bounced_left = " + formatTime(time_only_bounced_left) + "\n" : "") +
+    (time_only_bounced_left !== null ? "time_only_bounced_left = " + format_2_hh_mm_ss_ff(time_only_bounced_left, frame_duration) + " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n" : "") +
     "STOP_AFTER_SEQUENCES = " + STOP_AFTER_SEQUENCES + "\n" +
     "time_remap_use_clips_for_pointers = " + time_remap_use_clips_for_pointers + "\n" +
     "USE_WORKAREA_INSTEAD_OF_CLIPS = " + USE_WORKAREA_INSTEAD_OF_CLIPS + "\n" +
@@ -1271,6 +1310,7 @@
     "XRAY_SILENCE_TIME_BEFORE_ACTIVATION = " + XRAY_SILENCE_TIME_BEFORE_ACTIVATION + "\n" +
     "XRAY_ACTIVATION_TRANSITION_TIME = " + XRAY_ACTIVATION_TRANSITION_TIME + "\n" +
     "XRAY_DEACTIVATION_TRANSITION_TIME = " + XRAY_DEACTIVATION_TRANSITION_TIME + "\n" +
+    "REQUEST_ONE_BOOM_FX_AFTER_SECONDS = " + REQUEST_ONE_BOOM_FX_AFTER_SECONDS + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
