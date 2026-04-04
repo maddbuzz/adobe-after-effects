@@ -448,6 +448,10 @@
   create_new_or_return_existing_control(beat_layer, "REGULAR_FX_MIN_ACTIVATION_INTERVAL", "Slider", 0.2); // (60s / 180bpm / 4) = 0.08333 на 1/16 при 180bpm (5 кадров при 60к/c)
   create_new_or_return_existing_control(beat_layer, "FORCE_DEACTIVATE_FX_AFTER", "Slider", 0.2); // сек; 0 = не принуждать
   create_new_or_return_existing_control(beat_layer, "auto_correction_window", "Slider", 60); // seconds
+  create_new_or_return_existing_control(beat_layer, "REQUEST_ONE_BOOM_FX_AFTER_SECONDS", "Slider", 2);
+  create_new_or_return_existing_control(beat_layer, "XRAY_SILENCE_TIME_BEFORE_ACTIVATION", "Slider", 2);
+  create_new_or_return_existing_control(beat_layer, "XRAY_ACTIVATION_TRANSITION_TIME", "Slider", 1);
+  create_new_or_return_existing_control(beat_layer, "XRAY_DEACTIVATION_TRANSITION_TIME", "Slider", 0);
   create_new_or_return_existing_control(beat_layer, "scale_MAX_amplitude", "Slider", 100);
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_attack", "Slider", 0.0); // 0.1 seconds ?
   create_new_or_return_existing_control(beat_layer, "scale_ADSR_delay", "Slider", 0.1); // 0.1 seconds ?
@@ -474,10 +478,6 @@
   create_new_or_return_existing_control(beat_layer, "SET_FX_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "SET_FX_STOP_MARKERS", "Checkbox", false);
   create_new_or_return_existing_control(beat_layer, "CLEAR_FX_MARKERS", "Checkbox", false);
-  create_new_or_return_existing_control(beat_layer, "XRAY_SILENCE_TIME_BEFORE_ACTIVATION", "Slider", 2);
-  create_new_or_return_existing_control(beat_layer, "XRAY_ACTIVATION_TRANSITION_TIME", "Slider", 1);
-  create_new_or_return_existing_control(beat_layer, "XRAY_DEACTIVATION_TRANSITION_TIME", "Slider", 0);
-  create_new_or_return_existing_control(beat_layer, "REQUEST_ONE_BOOM_FX_AFTER_SECONDS", "Slider", 2);
 
   // эти значения ниже будут считаны из слайдеров только один раз (для времени comp.time, соответсвующего положению playhead):
   const frames_batch_size = beat_layer.effect("frames_batch_size")("Slider").value;
@@ -488,6 +488,10 @@
   const REGULAR_FX_MIN_ACTIVATION_INTERVAL = beat_layer.effect("REGULAR_FX_MIN_ACTIVATION_INTERVAL")("Slider").value;
   const FORCE_DEACTIVATE_FX_AFTER = beat_layer.effect("FORCE_DEACTIVATE_FX_AFTER")("Slider").value;
   const auto_correction_window = beat_layer.effect("auto_correction_window")("Slider").value;
+  const REQUEST_ONE_BOOM_FX_AFTER_SECONDS = beat_layer.effect("REQUEST_ONE_BOOM_FX_AFTER_SECONDS")("Slider").value;
+  const XRAY_SILENCE_TIME_BEFORE_ACTIVATION = beat_layer.effect("XRAY_SILENCE_TIME_BEFORE_ACTIVATION")("Slider").value;
+  const XRAY_ACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_ACTIVATION_TRANSITION_TIME")("Slider").value;
+  const XRAY_DEACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_DEACTIVATION_TRANSITION_TIME")("Slider").value;
   const scale_MAX_amplitude = beat_layer.effect("scale_MAX_amplitude")("Slider").value;
   const scale_ADSR_attack = beat_layer.effect("scale_ADSR_attack")("Slider").value;
   const scale_ADSR_delay = beat_layer.effect("scale_ADSR_delay")("Slider").value;
@@ -514,10 +518,6 @@
   const SET_FX_MARKERS = beat_layer.effect("SET_FX_MARKERS")("Checkbox").value;
   const SET_FX_STOP_MARKERS = beat_layer.effect("SET_FX_STOP_MARKERS")("Checkbox").value;
   const CLEAR_FX_MARKERS = beat_layer.effect("CLEAR_FX_MARKERS")("Checkbox").value;
-  const XRAY_SILENCE_TIME_BEFORE_ACTIVATION = beat_layer.effect("XRAY_SILENCE_TIME_BEFORE_ACTIVATION")("Slider").value;
-  const XRAY_ACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_ACTIVATION_TRANSITION_TIME")("Slider").value;
-  const XRAY_DEACTIVATION_TRANSITION_TIME = beat_layer.effect("XRAY_DEACTIVATION_TRANSITION_TIME")("Slider").value;
-  const REQUEST_ONE_BOOM_FX_AFTER_SECONDS = beat_layer.effect("REQUEST_ONE_BOOM_FX_AFTER_SECONDS")("Slider").value;
 
   /*
     Этот скрипт всегда дает ошибку "Unable to execute script at line 113. Object is invalid" если слайдер tgtControl (с именем "script_output") еще не существует на момент запуска скрипта.
@@ -1082,7 +1082,7 @@
       var signed_scale = sgn * scale_ADSR;
       /**/
 
-      /* ? TODO ? */
+      /* ? TODO ? *
       if (!warp_inputs) warp_inputs = window_stats;
       if (input_C_value <= warp_inputs.min || input_C_value >= warp_inputs.max) warp_inputs = window_stats;
       if (warp_inputs.max - warp_inputs.min !== 0) {
@@ -1092,7 +1092,7 @@
           (input_C_value - warp_inputs.min) / (warp_inputs.max - warp_inputs.min)
         );
       } else S_WarpFishEye_Amount = 0;
-      /* *
+      /* */
       S_WarpFishEye_Amount = lerp(
         0,
         S_WarpFishEye_Amount_neg_max,
@@ -1106,7 +1106,7 @@
         bcc_x_ray,
         bcc_x_ray_state,
         time,
-        last_FX_activation_time,
+        last_FX_activation_time !== null ? last_FX_activation_time : work_start_time,
         XRAY_SILENCE_TIME_BEFORE_ACTIVATION,
         XRAY_ACTIVATION_TRANSITION_TIME,
         XRAY_DEACTIVATION_TRANSITION_TIME
@@ -1133,19 +1133,27 @@
           Mix with Original
             bcc_x_ray = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
             (1 - bcc_x_ray) * 100;
+        Fractal noise
+          Fractal type: Rocky | Cloudy (числами в выражении: 14 | 15)
+          Noise type: Soft Linear | Spline
+          Transform
+            Scale: 500 ?
+          Complexity: 1
+          Evolution:
+            function fract_abs(num) { return Math.abs(num % 1); }
+            fract_abs(time * 0.001) * 88 * 360;
+          Evolution options:
+            Cycle evolution: On
+            Cycle in evolutions: 88
+          Opacity:
+            opacity_0_1 = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
+            opacity_0_1 * 100;
+          Blending mode: Hue | Saturation (числами в выражении: 19 | 20)
         BCC Hue-Sat-Lightness
           Color Space: HSLuma (вроде как не портит яркость, по крайней мере если после посмотреть через Tint)
           Hue:
             thisComp.layer("beat").effect("script_output012")("3D Point")[2];
-        BCC Mixed Colors // !!! очень тяжелый эффект - при рендере замедляет в несколько раз
-          Scale X: 1, 1000
-          Detail: 10
-          Coarseness: 10
-          Mutation: -1000, +1000
-            Math.sin(0.0005 * time) * 1000;
-          Opacity: 0, 100
-            bcc_mixed_colors = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
-            bcc_mixed_colors * 100;
+
 
       Transform
         Scale:
@@ -1155,11 +1163,15 @@
       --- НИЖЕ НЕИСПОЛЬЗУЕМОЕ ---
 
       Effects
-        S_BlurMotion
-          "From Z Dist" or "To Z Dist":
-            signed_scale = thisComp.layer("beat").effect("script_output012")("3D Point")[1]; // [100;200] | [-100;-200]
-            unsigned_normalized = (Math.abs(signed_scale) - 100) / 100; // [0;1]
-            1 - 0.1 * unsigned_normalized;
+        BCC Mixed Colors // !!! очень тяжелый эффект - при рендере замедляет в несколько раз
+          Scale X: 1, 1000
+          Detail: 10
+          Coarseness: 10
+          Mutation: -1000, +1000
+            Math.sin(0.0005 * time) * 1000;
+          Opacity: 0, 100
+            bcc_mixed_colors = thisComp.layer("beat").effect("script_output678")("3D Point")[0];
+            bcc_mixed_colors * 100;
       Transform
         Anchor Point:
           center_x = thisComp.layer("beat").effect("script_output345")("3D Point")[2];
@@ -1249,14 +1261,18 @@
     "activate_avg_max = " + activate_avg_max + "\n" +
     // "?activate_avg_max? * inputs_ABC_max_value = " + activate_avg_max * inputs_ABC_max_value + "\n" + // TODO ?
     "FX_triggered_total = " + FX_triggered_total + "\n" +
-    "FX_triggered_but_skipped = " + FX_triggered_but_skipped + "\n" +
-    // "FX_triggered_but_skipped / FX_triggered_total = " + FX_triggered_but_skipped / FX_triggered_total + "\n" +
-    "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
+    "FX_triggered_BUT_SKIPPED = " + FX_triggered_but_skipped + "\n" +
+    "FX_triggered_REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) + "\n" +
     "FX_triggered_per_minute REGULAR = " + (FX_triggered_total - FX_triggered_but_skipped) / processed_duration_minutes + "\n" +
+    // "FX_triggered_per_minute TOTAL = " + FX_triggered_total / processed_duration_minutes + "\n" +
     // "FX_triggered_avg_period_seconds = " + processed_duration_minutes * 60 / FX_triggered_total + "\n" +
-    "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "\n" +
-    "FORCE_DEACTIVATE_FX_AFTER = " + FORCE_DEACTIVATE_FX_AFTER + "\n" +
+    "REGULAR_FX_MIN_ACTIVATION_INTERVAL = " + REGULAR_FX_MIN_ACTIVATION_INTERVAL + "!!!\n" +
+    "FORCE_DEACTIVATE_FX_AFTER = " + FORCE_DEACTIVATE_FX_AFTER + "!!!\n" +
     "auto_correction_window SECONDS = " + auto_correction_window + "\n" +
+    "REQUEST_ONE_BOOM_FX_AFTER_SECONDS = " + REQUEST_ONE_BOOM_FX_AFTER_SECONDS + "\n" +
+    "XRAY_SILENCE_TIME_BEFORE_ACTIVATION = " + XRAY_SILENCE_TIME_BEFORE_ACTIVATION + "\n" +
+    "XRAY_ACTIVATION_TRANSITION_TIME = " + XRAY_ACTIVATION_TRANSITION_TIME + "\n" +
+    "XRAY_DEACTIVATION_TRANSITION_TIME = " + XRAY_DEACTIVATION_TRANSITION_TIME + "\n" +
     "scale_MAX_amplitude = " + scale_MAX_amplitude + "\n" +
     "scale_ADSR_attack = " + scale_ADSR_attack + "\n" +
     "scale_ADSR_delay = " + scale_ADSR_delay + "\n" +
@@ -1307,10 +1323,6 @@
     "SET_FX_MARKERS = " + SET_FX_MARKERS + "\n" +
     "SET_FX_STOP_MARKERS = " + SET_FX_STOP_MARKERS + "\n" +
     "CLEAR_FX_MARKERS = " + CLEAR_FX_MARKERS + "\n" +
-    "XRAY_SILENCE_TIME_BEFORE_ACTIVATION = " + XRAY_SILENCE_TIME_BEFORE_ACTIVATION + "\n" +
-    "XRAY_ACTIVATION_TRANSITION_TIME = " + XRAY_ACTIVATION_TRANSITION_TIME + "\n" +
-    "XRAY_DEACTIVATION_TRANSITION_TIME = " + XRAY_DEACTIVATION_TRANSITION_TIME + "\n" +
-    "REQUEST_ONE_BOOM_FX_AFTER_SECONDS = " + REQUEST_ONE_BOOM_FX_AFTER_SECONDS + "\n" +
     "all_pointers_bounced_once_at = " + formatTime(all_pointers_bounced_once_at) + "\n";
 
   // Автосохранение статистики рядом с файлом проекта: {name}.stats.txt
